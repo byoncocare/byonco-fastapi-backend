@@ -21,7 +21,10 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
     raise RuntimeError("OPENAI_API_KEY not set")
 
-# Auth (enable one or both)
+# PUBLIC MODE: when true, auth is skipped but origin + rate limit still apply
+PUBLIC_MODE = os.getenv("PUBLIC_MODE", "true").lower() == "true"
+
+# Auth (enable one or both when PUBLIC_MODE=false)
 JWT_SECRET   = os.getenv("JWT_SECRET", "")            # HS256 secret
 JWT_ISSUER   = os.getenv("JWT_ISSUER", "byonco-auth")
 JWT_AUDIENCE = os.getenv("JWT_AUDIENCE", "byonco-web")
@@ -80,6 +83,13 @@ def looks_model_probe(q: str) -> bool:
     return any(k in s for k in MODEL_PROBING)
 
 # ------------ Auth / Security helpers ------------
+def _client_ip(request: Request) -> str:
+    # Respect X-Forwarded-For if present (first IP)
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
 def _origin_ok(request: Request) -> bool:
     if not STRICT_ORIGIN_CHECK:
         return True
@@ -126,15 +136,21 @@ def require_auth(
     authorization: Optional[str] = Header(None),
     x_api_key: Optional[str] = Header(None)
 ):
-    if not JWT_SECRET and not API_KEY:
-        # Misconfiguration guard — do not allow unauthenticated production traffic
-        raise HTTPException(status_code=500, detail="Auth not configured on server")
-
+    # Always enforce origin + rate limit
     if not _origin_ok(request):
         raise HTTPException(status_code=403, detail="Origin not allowed")
 
-    ip = request.client.host if request.client else "unknown"
+    ip = _client_ip(request)
     _rate_limit(ip)
+
+    # In PUBLIC_MODE, skip JWT/API key checks entirely
+    if PUBLIC_MODE:
+        return
+
+    # Private mode: require at least one configured mechanism
+    if not JWT_SECRET and not API_KEY:
+        # Misconfiguration guard — do not allow unauthenticated production traffic
+        raise HTTPException(status_code=500, detail="Auth not configured on server")
 
     # Accept either mechanism (whichever is enabled)
     passed = False
@@ -153,11 +169,11 @@ class AskReq(BaseModel):
 # ------------ Routes ------------
 @app.get("/")
 def root():
-    return {"message": "ByOnco API is running 🚀"}
+    return {"message": "ByOnco API is running 🚀", "public_mode": PUBLIC_MODE}
 
 @app.get("/healthz")
 def healthz():
-    return {"ok": True, "ts": int(time.time())}
+    return {"ok": True, "ts": int(time.time()), "public_mode": PUBLIC_MODE}
 
 # ---- DEV-ONLY: mint a short-lived JWT for testing ----
 @app.post("/auth/dev-token")
@@ -219,7 +235,7 @@ def api_ask(req: AskReq, request: Request, _auth=Depends(require_auth)):
                 {"role": "user", "content": q},
             ],
             temperature=0.3,
-            timeout=30,  # defensive timeout
+            timeout=30,  # defensive timeout (keep as in your version)
         )
         answer = (completion.choices[0].message.content or "").strip()
         return {"ok": True, "answer": answer}
