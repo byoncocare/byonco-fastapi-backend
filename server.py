@@ -542,28 +542,16 @@ app.include_router(cost_calculator_router)
 # ======================================
 # Hospitals Routes (Modular)
 # ======================================
-try:
-    from hospitals.api_routes import create_api_router as create_hospitals_router
-    hospitals_router = create_hospitals_router()
-    app.include_router(hospitals_router)
-    print("✅ Hospitals router registered successfully")
-except Exception as e:
-    print(f"❌ Failed to register hospitals router: {str(e)}")
-    import traceback
-    traceback.print_exc()
+from hospitals.api_routes import create_api_router as create_hospitals_router
+hospitals_router = create_hospitals_router()
+app.include_router(hospitals_router)
 
 # ======================================
 # Rare Cancers Routes (Modular)
 # ======================================
-try:
-    from rare_cancers.api_routes import create_api_router as create_rare_cancers_router
-    rare_cancers_router = create_rare_cancers_router()
-    app.include_router(rare_cancers_router)
-    print("✅ Rare cancers router registered successfully")
-except Exception as e:
-    print(f"❌ Failed to register rare cancers router: {str(e)}")
-    import traceback
-    traceback.print_exc()
+from rare_cancers.api_routes import create_api_router as create_rare_cancers_router
+rare_cancers_router = create_rare_cancers_router()
+app.include_router(rare_cancers_router)
 
 # ======================================
 # Authentication Routes
