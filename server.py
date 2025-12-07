@@ -484,6 +484,15 @@ async def get_stats():
 # Root route
 @app.get("/")
 async def root():
+    # Get all registered routes for debugging
+    routes = []
+    for route in app.routes:
+        if hasattr(route, "path") and hasattr(route, "methods"):
+            routes.append({
+                "path": route.path,
+                "methods": list(route.methods) if route.methods else []
+            })
+    
     return {
         "message": "ByOnco API Server",
         "version": "1.0.0",
@@ -493,7 +502,8 @@ async def root():
             "cancer_types": "/api/cancer-types",
             "cities": "/api/cities",
             "doctors": "/api/doctors"
-        }
+        },
+        "registered_routes": routes[:20]  # Show first 20 routes for debugging
     }
 
 app.include_router(api_router)
