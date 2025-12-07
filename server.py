@@ -29,6 +29,25 @@ db = client[os.environ.get("DB_NAME", "test_database")]
 # FastAPI App + Router
 # ======================================
 app = FastAPI()
+
+# CORS settings
+origins = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "https://byoncocare.com",
+    "https://www.byoncocare.com",
+    "https://byonco.onrender.com",
+    "https://byonco-goaj7ykq-byonco-cares-projects.vercel.app",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 api_router = APIRouter(prefix="/api")
 
 # ======================================
@@ -567,13 +586,7 @@ from get_started.api_routes import create_api_router as create_get_started_route
 get_started_router = create_get_started_router(db)
 app.include_router(get_started_router)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# CORS middleware already added above after app creation
 
 # ======================================
 # Logging
