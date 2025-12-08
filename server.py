@@ -52,6 +52,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Initialize logger early for router imports
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
+
 api_router = APIRouter(prefix="/api")
 
 # ======================================
