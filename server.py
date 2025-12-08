@@ -535,51 +535,75 @@ async def root():
     }
 
 app.include_router(api_router)
+logger.info("✅ Included main api_router")
 
 # ======================================
 # Cost Calculator Routes
 # ======================================
-cost_calculator_path = Path(__file__).parent / "cost_calculator"
-sys.path.insert(0, str(cost_calculator_path))
-
-from api_routes import create_api_router as create_cost_calculator_router
-cost_calculator_router = create_cost_calculator_router(db)
-app.include_router(cost_calculator_router)
+try:
+    cost_calculator_path = Path(__file__).parent / "cost_calculator"
+    sys.path.insert(0, str(cost_calculator_path))
+    from api_routes import create_api_router as create_cost_calculator_router
+    cost_calculator_router = create_cost_calculator_router(db)
+    app.include_router(cost_calculator_router)
+    logger.info("✅ Included cost_calculator_router")
+except Exception as e:
+    logger.error(f"❌ Failed to include cost_calculator_router: {e}")
 
 # ======================================
 # Hospitals Routes (Modular)
 # ======================================
-from hospitals.api_routes import create_api_router as create_hospitals_router
-hospitals_router = create_hospitals_router()
-app.include_router(hospitals_router)
+try:
+    from hospitals.api_routes import create_api_router as create_hospitals_router
+    hospitals_router = create_hospitals_router()
+    app.include_router(hospitals_router)
+    logger.info("✅ Included hospitals_router")
+except Exception as e:
+    logger.error(f"❌ Failed to include hospitals_router: {e}")
 
 # ======================================
 # Rare Cancers Routes (Modular)
 # ======================================
-from rare_cancers.api_routes import create_api_router as create_rare_cancers_router
-rare_cancers_router = create_rare_cancers_router()
-app.include_router(rare_cancers_router)
+try:
+    from rare_cancers.api_routes import create_api_router as create_rare_cancers_router
+    rare_cancers_router = create_rare_cancers_router()
+    app.include_router(rare_cancers_router)
+    logger.info("✅ Included rare_cancers_router")
+except Exception as e:
+    logger.error(f"❌ Failed to include rare_cancers_router: {e}")
 
 # ======================================
 # Authentication Routes
 # ======================================
-from auth.api_routes import create_api_router as create_auth_router
-auth_router = create_auth_router(db)
-app.include_router(auth_router)
+try:
+    from auth.api_routes import create_api_router as create_auth_router
+    auth_router = create_auth_router(db)
+    app.include_router(auth_router)
+    logger.info("✅ Included auth_router")
+except Exception as e:
+    logger.error(f"❌ Failed to include auth_router: {e}")
 
 # ======================================
 # Payment Routes
 # ======================================
-from payments.api_routes import create_api_router as create_payments_router
-payments_router = create_payments_router(db)
-app.include_router(payments_router)
+try:
+    from payments.api_routes import create_api_router as create_payments_router
+    payments_router = create_payments_router(db)
+    app.include_router(payments_router)
+    logger.info("✅ Included payments_router")
+except Exception as e:
+    logger.error(f"❌ Failed to include payments_router: {e}")
 
 # ======================================
 # Get Started Routes
 # ======================================
-from get_started.api_routes import create_api_router as create_get_started_router
-get_started_router = create_get_started_router(db)
-app.include_router(get_started_router)
+try:
+    from get_started.api_routes import create_api_router as create_get_started_router
+    get_started_router = create_get_started_router(db)
+    app.include_router(get_started_router)
+    logger.info("✅ Included get_started_router")
+except Exception as e:
+    logger.error(f"❌ Failed to include get_started_router: {e}")
 
 # CORS middleware already added above after app creation
 
