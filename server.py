@@ -58,6 +58,11 @@ EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
 # ======================================
 # Import Seed Data
 # ======================================
+# Ensure backend directory is in path for data_seed import
+_backend_dir = Path(__file__).parent.absolute()
+if str(_backend_dir) not in sys.path:
+    sys.path.insert(0, str(_backend_dir))
+
 from data_seed import (
     HOSPITALS,
     DOCTORS,
