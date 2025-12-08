@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
+import sys
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
@@ -535,8 +536,6 @@ app.include_router(api_router)
 # ======================================
 # Cost Calculator Routes
 # ======================================
-import sys
-from pathlib import Path
 cost_calculator_path = Path(__file__).parent / "cost_calculator"
 sys.path.insert(0, str(cost_calculator_path))
 
