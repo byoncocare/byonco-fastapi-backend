@@ -70,6 +70,7 @@ class AuthService:
             "phone": phone,
             "is_verified": False,
             "auth_provider": "email",
+            "profile_completed": False,  # Profile must be completed after registration
             "created_at": datetime.now(timezone.utc).isoformat(),
             "updated_at": datetime.now(timezone.utc).isoformat()
         }
@@ -110,6 +111,73 @@ class AuthService:
         user = await self.users_collection.find_one({"id": user_id})
         if user:
             user_doc = dict(user)
+            user_doc.pop("password_hash", None)
+            return user_doc
+        return None
+    
+    def calculate_age(self, date_of_birth: str) -> Optional[int]:
+        """Calculate age from date of birth (YYYY-MM-DD format)"""
+        try:
+            # Parse date string (format: YYYY-MM-DD)
+            dob = datetime.fromisoformat(date_of_birth.replace('Z', '+00:00'))
+            if dob.tzinfo is None:
+                dob = dob.replace(tzinfo=timezone.utc)
+            today = datetime.now(timezone.utc)
+            age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+            return age
+        except Exception as e:
+            logger.error(f"Error calculating age: {str(e)}")
+            return None
+    
+    def is_profile_complete(self, user: Dict[str, Any]) -> bool:
+        """Check if user profile is complete"""
+        required_fields = [
+            "full_name",
+            "date_of_birth",
+            "city",
+            "country",
+            "phone",
+            "emergency_contact_name",
+            "emergency_contact_relationship",
+            "emergency_contact_phone"
+        ]
+        
+        for field in required_fields:
+            value = user.get(field)
+            if not value or (isinstance(value, str) and value.strip() == ""):
+                return False
+        return True
+    
+    async def update_user_profile(self, user_id: str, profile_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update user profile"""
+        user = await self.users_collection.find_one({"id": user_id})
+        if not user:
+            raise ValueError("User not found")
+        
+        # Calculate age if date_of_birth is provided
+        update_data = profile_data.copy()
+        if "date_of_birth" in update_data and update_data["date_of_birth"]:
+            age = self.calculate_age(update_data["date_of_birth"])
+            if age is not None:
+                update_data["age"] = age
+        
+        # Update user document
+        update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+        
+        # Check if profile is complete after update
+        updated_user = {**user, **update_data}
+        profile_completed = self.is_profile_complete(updated_user)
+        update_data["profile_completed"] = profile_completed
+        
+        await self.users_collection.update_one(
+            {"id": user_id},
+            {"$set": update_data}
+        )
+        
+        # Return updated user
+        updated_user = await self.users_collection.find_one({"id": user_id})
+        if updated_user:
+            user_doc = dict(updated_user)
             user_doc.pop("password_hash", None)
             return user_doc
         return None
@@ -181,6 +249,9 @@ class AuthService:
         )
         
         return True
+
+
+
 
 
 

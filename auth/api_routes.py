@@ -5,7 +5,8 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from .models import (
     UserRegister, UserLogin, GoogleAuthRequest,
-    UserResponse, TokenResponse, PasswordResetRequest, PasswordResetConfirm
+    UserResponse, TokenResponse, PasswordResetRequest, PasswordResetConfirm,
+    ProfileUpdate
 )
 from .service import AuthService
 from typing import Optional
@@ -185,6 +186,48 @@ def create_api_router(db):
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to reset password"
+            )
+    
+    @router.put("/profile", response_model=UserResponse)
+    async def update_profile(
+        profile_data: ProfileUpdate,
+        current_user: dict = Depends(get_current_user)
+    ):
+        """Update user profile"""
+        try:
+            # Convert Pydantic model to dict, excluding None values
+            update_dict = profile_data.model_dump(exclude_none=True)
+            
+            if not update_dict:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="No profile data provided"
+                )
+            
+            updated_user = await auth_service.update_user_profile(
+                user_id=current_user["user_id"],
+                profile_data=update_dict
+            )
+            
+            if updated_user is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="User not found"
+                )
+            
+            return updated_user
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e)
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Profile update error: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update profile"
             )
     
     return router

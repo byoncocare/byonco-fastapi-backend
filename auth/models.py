@@ -40,6 +40,29 @@ class UserResponse(BaseModel):
     is_verified: bool
     created_at: datetime
     auth_provider: str  # "email" or "google"
+    # Profile fields
+    profile_completed: Optional[bool] = False
+    date_of_birth: Optional[str] = None
+    age: Optional[int] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
+    photo_url: Optional[str] = None
+    emergency_contact_name: Optional[str] = None
+    emergency_contact_relationship: Optional[str] = None
+    emergency_contact_phone: Optional[str] = None
+
+
+class ProfileUpdate(BaseModel):
+    """Profile update request"""
+    full_name: Optional[str] = None
+    date_of_birth: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
+    phone: Optional[str] = None
+    photo_url: Optional[str] = None
+    emergency_contact_name: Optional[str] = None
+    emergency_contact_relationship: Optional[str] = None
+    emergency_contact_phone: Optional[str] = None
 
 
 class TokenResponse(BaseModel):
@@ -58,6 +81,9 @@ class PasswordResetConfirm(BaseModel):
     """Password reset confirmation"""
     token: str
     new_password: str = Field(..., min_length=8)
+
+
+
 
 
 
