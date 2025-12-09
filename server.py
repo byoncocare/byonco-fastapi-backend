@@ -145,6 +145,19 @@ class AppointmentResponse(BaseModel):
     created_at: datetime
 
 
+class ContactRequest(BaseModel):
+    name: str
+    email: str
+    phone: str
+    message: str
+
+
+class ContactResponse(BaseModel):
+    id: str
+    message: str
+    status: str
+
+
 # ======================================
 # HELPER FUNCTIONS
 # ======================================
@@ -478,6 +491,37 @@ async def get_appointments(patient_email: Optional[str] = None):
 
 
 # -------------------------
+# Contact Form (Free Trial / Request Demo)
+# -------------------------
+@api_router.post("/contact", response_model=ContactResponse)
+async def submit_contact(request: ContactRequest):
+    """Handle contact form submissions from Free Trial / Request Demo buttons"""
+    try:
+        contact_id = str(uuid.uuid4())
+        
+        contact_doc = {
+            "id": contact_id,
+            "name": request.name,
+            "email": request.email.lower(),
+            "phone": request.phone,
+            "message": request.message,
+            "status": "pending",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        
+        await db.contacts.insert_one(contact_doc)
+        
+        return {
+            "id": contact_id,
+            "message": "Contact form submitted successfully",
+            "status": "success"
+        }
+    except Exception as e:
+        logging.error(f"Contact form error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# -------------------------
 # Stats
 # -------------------------
 @api_router.get("/stats")
@@ -577,6 +621,13 @@ app.include_router(payments_router)
 from get_started.api_routes import create_api_router as create_get_started_router
 get_started_router = create_get_started_router(db)
 app.include_router(get_started_router)
+
+# ======================================
+# Waitlist Routes
+# ======================================
+from waitlist.api_routes import create_api_router as create_waitlist_router
+waitlist_router = create_waitlist_router(db)
+app.include_router(waitlist_router)
 
 # CORS middleware already added above after app creation
 
