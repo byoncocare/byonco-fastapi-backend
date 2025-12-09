@@ -133,6 +133,19 @@ class SecondOpinionResponse(BaseModel):
     created_at: datetime
 
 
+class ContactRequest(BaseModel):
+    name: str
+    email: str
+    phone: str
+    message: str
+
+
+class ContactResponse(BaseModel):
+    id: str
+    message: str
+    status: str
+
+
 class AppointmentRequest(BaseModel):
     patient_name: str
     patient_email: str
@@ -511,6 +524,37 @@ async def get_stats():
         "rare_cancers": len(RARE_CANCERS),
         "common_cancers": len(COMMON_CANCERS),
     }
+
+
+# -------------------------
+# Contact Form (Free Trial / Request Demo)
+# -------------------------
+@api_router.post("/contact", response_model=ContactResponse)
+async def submit_contact(request: ContactRequest):
+    """Handle contact form submissions from Free Trial / Request Demo buttons"""
+    try:
+        contact_id = str(uuid.uuid4())
+        
+        contact_doc = {
+            "id": contact_id,
+            "name": request.name,
+            "email": request.email.lower(),
+            "phone": request.phone,
+            "message": request.message,
+            "status": "pending",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        
+        await db.contacts.insert_one(contact_doc)
+        
+        return {
+            "id": contact_id,
+            "message": "Contact form submitted successfully",
+            "status": "success"
+        }
+    except Exception as e:
+        logger.error(f"Contact form error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ======================================
