@@ -11,7 +11,7 @@ class UserRegister(BaseModel):
     """User registration request"""
     email: EmailStr
     password: str = Field(..., min_length=8, description="Password must be at least 8 characters")
-    full_name: str = Field(..., min_length=2, description="Full name is required")
+    full_name: Optional[str] = Field(default="", description="Full name (optional)")
     phone: str = Field(..., min_length=10, description="Phone number is required")
     agree_to_terms: bool = Field(..., description="Must agree to terms and conditions")
 
@@ -38,7 +38,8 @@ class UserResponse(BaseModel):
     full_name: str
     phone: str
     is_verified: bool
-    created_at: datetime
+    created_at: Optional[str] = None  # ISO format string from MongoDB
+    updated_at: Optional[str] = None  # ISO format string from MongoDB
     auth_provider: str  # "email" or "google"
     # Profile fields
     profile_completed: Optional[bool] = False

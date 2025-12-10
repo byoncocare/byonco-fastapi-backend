@@ -61,12 +61,17 @@ class AuthService:
         if existing_user:
             raise ValueError("User with this email already exists")
         
+        # Normalize full_name (handle empty string or None)
+        normalized_full_name = (full_name or "").strip()
+        if not normalized_full_name:
+            normalized_full_name = ""  # Allow empty full_name, will be required in profile
+        
         # Create user document
         user_doc = {
             "id": str(secrets.token_urlsafe(16)),
             "email": email.lower(),
             "password_hash": self.hash_password(password),
-            "full_name": full_name,
+            "full_name": normalized_full_name,
             "phone": phone,
             "is_verified": False,
             "auth_provider": "email",

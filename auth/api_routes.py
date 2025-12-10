@@ -45,7 +45,10 @@ def create_api_router(db):
     async def register(user_data: UserRegister):
         """Register a new user"""
         try:
+            logger.info(f"Registration attempt for email: {user_data.email}")
+            
             if not user_data.agree_to_terms:
+                logger.warning(f"Registration failed: terms not agreed for {user_data.email}")
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="You must agree to terms and conditions"
@@ -54,44 +57,57 @@ def create_api_router(db):
             user_doc = await auth_service.register_user(
                 email=user_data.email,
                 password=user_data.password,
-                full_name=user_data.full_name,
+                full_name=user_data.full_name or "",
                 phone=user_data.phone
             )
+            
+            logger.info(f"User created successfully: {user_doc['id']}")
             
             # Create token
             token_data = {"sub": user_doc["id"], "email": user_doc["email"]}
             access_token = auth_service.create_access_token(token_data)
+            
+            logger.info(f"Token created for user: {user_doc['id']}")
             
             return {
                 "access_token": access_token,
                 "token_type": "bearer",
                 "user": user_doc
             }
+        except HTTPException:
+            raise
         except ValueError as e:
+            logger.warning(f"Registration validation error: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(e)
             )
         except Exception as e:
-            logger.error(f"Registration error: {str(e)}")
+            logger.error(f"Registration error: {str(e)}", exc_info=True)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Registration failed"
+                detail=f"Registration failed: {str(e)}"
             )
     
     @router.post("/login", response_model=TokenResponse)
     async def login(credentials: UserLogin):
         """Login user"""
         try:
+            logger.info(f"Login attempt for email: {credentials.email}")
+            
             result = await auth_service.login_user(
                 email=credentials.email,
                 password=credentials.password
             )
             if result is None:
+                logger.warning(f"Login failed: invalid credentials for {credentials.email}")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Incorrect email or password"
                 )
+            
+            logger.info(f"Login successful for user: {result['user'].get('id')}")
+            
             return {
                 "access_token": result["access_token"],
                 "token_type": "bearer",
@@ -100,10 +116,10 @@ def create_api_router(db):
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Login error: {str(e)}")
+            logger.error(f"Login error: {str(e)}", exc_info=True)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Login failed"
+                detail=f"Login failed: {str(e)}"
             )
     
     @router.post("/google", response_model=TokenResponse)
