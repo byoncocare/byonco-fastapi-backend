@@ -23,8 +23,18 @@ load_dotenv(ROOT_DIR / ".env")
 # MongoDB Connection
 # ======================================
 mongo_url = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ.get("DB_NAME", "test_database")]
+if not mongo_url or mongo_url == "mongodb://localhost:27017":
+    logger.warning("⚠️ MONGO_URL not set or using default localhost. Set MONGO_URL environment variable for production!")
+    logger.warning("⚠️ Registration/login will fail without proper MongoDB connection.")
+
+try:
+    client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=5000)
+    db = client[os.environ.get("DB_NAME", "test_database")]
+    logger.info(f"✅ MongoDB connection initialized (DB: {os.environ.get('DB_NAME', 'test_database')})")
+except Exception as e:
+    logger.error(f"❌ MongoDB connection error: {str(e)}")
+    logger.error("⚠️ Make sure MONGO_URL environment variable is set correctly on Render!")
+    raise
 
 # ======================================
 # FastAPI App + Router
