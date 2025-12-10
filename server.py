@@ -30,17 +30,25 @@ logger = logging.getLogger(__name__)
 # MongoDB Connection
 # ======================================
 mongo_url = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
+# Strip whitespace and newlines from connection string (common issue with env vars)
+if mongo_url:
+    mongo_url = mongo_url.strip()
+
 if not mongo_url or mongo_url == "mongodb://localhost:27017":
     logger.warning("⚠️ MONGO_URL not set or using default localhost. Set MONGO_URL environment variable for production!")
     logger.warning("⚠️ Registration/login will fail without proper MongoDB connection.")
 
 try:
     client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=5000)
-    db = client[os.environ.get("DB_NAME", "test_database")]
-    logger.info(f"✅ MongoDB connection initialized (DB: {os.environ.get('DB_NAME', 'test_database')})")
+    db_name = os.environ.get("DB_NAME", "test_database")
+    if db_name:
+        db_name = db_name.strip()  # Also strip DB_NAME
+    db = client[db_name]
+    logger.info(f"✅ MongoDB connection initialized (DB: {db_name})")
 except Exception as e:
     logger.error(f"❌ MongoDB connection error: {str(e)}")
     logger.error("⚠️ Make sure MONGO_URL environment variable is set correctly on Render!")
+    logger.error(f"⚠️ Connection string length: {len(mongo_url) if mongo_url else 0} chars")
     raise
 
 # ======================================
