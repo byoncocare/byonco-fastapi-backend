@@ -69,13 +69,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize logger early for router imports
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
-
 # Log environment variable status (without exposing values)
 logger.info(f"🔍 Environment check: MONGO_URL={'✅ Set' if os.environ.get('MONGO_URL') and os.environ.get('MONGO_URL') != 'mongodb://localhost:27017' else '❌ Not set (using default)'}")
 logger.info(f"🔍 Environment check: DB_NAME={'✅ Set' if os.environ.get('DB_NAME') else '❌ Not set (using default)'}")
