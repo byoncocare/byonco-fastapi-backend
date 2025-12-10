@@ -69,6 +69,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Log environment variable status (without exposing values)
+logger.info(f"🔍 Environment check: MONGO_URL={'✅ Set' if os.environ.get('MONGO_URL') and os.environ.get('MONGO_URL') != 'mongodb://localhost:27017' else '❌ Not set (using default)'}")
+logger.info(f"🔍 Environment check: DB_NAME={'✅ Set' if os.environ.get('DB_NAME') else '❌ Not set (using default)'}")
+logger.info(f"🔍 Environment check: SECRET_KEY={'✅ Set' if os.environ.get('SECRET_KEY') and os.environ.get('SECRET_KEY') != 'your-secret-key-change-in-production' else '❌ Not set (using default - INSECURE!)'}")
+
 api_router = APIRouter(prefix="/api")
 
 # ======================================
