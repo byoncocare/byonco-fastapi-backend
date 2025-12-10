@@ -11,7 +11,7 @@ class UserRegister(BaseModel):
     """User registration request"""
     email: EmailStr
     password: str = Field(..., min_length=8, description="Password must be at least 8 characters")
-    full_name: Optional[str] = Field(default="", description="Full name (optional)")
+    full_name: str = Field(default="", min_length=0, description="Full name is optional")
     phone: str = Field(..., min_length=10, description="Phone number is required")
     agree_to_terms: bool = Field(..., description="Must agree to terms and conditions")
 
