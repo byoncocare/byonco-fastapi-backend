@@ -679,6 +679,17 @@ try:
 except Exception as e:
     logger.error(f"❌ Failed to include get_started_router: {e}")
 
+# ======================================
+# Journey Builder Routes
+# ======================================
+try:
+    from journey_builder.api_routes import create_api_router as create_journey_builder_router
+    journey_builder_router = create_journey_builder_router()
+    app.include_router(journey_builder_router)
+    logger.info("✅ Included journey_builder_router")
+except Exception as e:
+    logger.error(f"❌ Failed to include journey_builder_router: {e}")
+
 # CORS middleware already added above after app creation
 
 # ======================================

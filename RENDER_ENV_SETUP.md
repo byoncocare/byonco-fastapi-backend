@@ -90,3 +90,4 @@ After setting up environment variables, test registration:
 3. Check browser console - should NOT see "Connection refused" error
 4. Check Render logs - should see successful MongoDB connection
 
+
