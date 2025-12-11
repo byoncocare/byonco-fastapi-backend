@@ -629,6 +629,13 @@ from waitlist.api_routes import create_api_router as create_waitlist_router
 waitlist_router = create_waitlist_router(db)
 app.include_router(waitlist_router)
 
+# ======================================
+# Journey Builder Routes
+# ======================================
+from journey_builder.api_routes import create_api_router as create_journey_builder_router
+journey_builder_router = create_journey_builder_router()
+app.include_router(journey_builder_router)
+
 # CORS middleware already added above after app creation
 
 # ======================================
