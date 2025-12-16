@@ -109,13 +109,23 @@ def create_api_router():
     async def test_specialists():
         """Test endpoint to verify specialists data is loaded"""
         try:
-            total_specialists = sum(len(specs) for specs in service.rare_cancer_specialists.values())
-            cancer_types = list(service.rare_cancer_specialists.keys())
+            rare_total = sum(len(specs) for specs in service.rare_cancer_specialists.values())
+            common_total = sum(len(specs) for specs in service.common_cancer_specialists.values())
+            total_specialists = rare_total + common_total
+            rare_types = list(service.rare_cancer_specialists.keys())
+            common_types = list(service.common_cancer_specialists.keys())
+            all_types = rare_types + common_types
             return {
                 "total_specialists": total_specialists,
-                "cancer_types_with_specialists": len(cancer_types),
-                "sample_cancer_types": cancer_types[:5],
-                "sample_specialists": service.rare_cancer_specialists.get("Diffuse Intrinsic Pontine Glioma (DIPG)", [])[:2]
+                "rare_cancer_specialists": rare_total,
+                "common_cancer_specialists": common_total,
+                "rare_cancer_types": len(rare_types),
+                "common_cancer_types": len(common_types),
+                "total_cancer_types": len(all_types),
+                "sample_rare_cancer_types": rare_types[:3],
+                "sample_common_cancer_types": common_types[:3],
+                "sample_rare_specialists": service.rare_cancer_specialists.get("Diffuse Intrinsic Pontine Glioma (DIPG)", [])[:2],
+                "sample_common_specialists": service.common_cancer_specialists.get("Breast Cancer", [])[:2]
             }
         except Exception as e:
             logger.error(f"Error in test endpoint: {str(e)}")
