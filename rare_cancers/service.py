@@ -2,7 +2,7 @@
 Business logic for Rare Cancers API
 """
 from typing import List, Optional, Dict, Any
-from .seed_data import RARE_CANCERS, ALL_CANCERS, RARE_CANCER_DETAILS, RARE_CANCER_SPECIALISTS
+from .seed_data import RARE_CANCERS, ALL_CANCERS, RARE_CANCER_DETAILS, RARE_CANCER_SPECIALISTS, COMMON_CANCER_SPECIALISTS
 import uuid
 
 
@@ -14,6 +14,7 @@ class RareCancersService:
         self.all_cancers = ALL_CANCERS
         self.rare_cancer_details = RARE_CANCER_DETAILS
         self.rare_cancer_specialists = RARE_CANCER_SPECIALISTS
+        self.common_cancer_specialists = COMMON_CANCER_SPECIALISTS
     
     def get_all_rare_cancers(
         self,
@@ -100,32 +101,36 @@ class RareCancersService:
     # -------------------------
 
     def get_specialists_for_cancer(self, cancer_name: str) -> List[Dict[str, Any]]:
-        """Return specialists mapped to a specific rare cancer name."""
+        """Return specialists mapped to a specific cancer name (rare or common)."""
         import logging
         logger = logging.getLogger(__name__)
         
         logger.info(f"Looking for specialists for: '{cancer_name}'")
-        logger.info(f"Available cancer types in specialists dict: {list(self.rare_cancer_specialists.keys())[:5]}...")
+        
+        # Combine both rare and common cancer specialists dictionaries
+        all_specialists = {**self.rare_cancer_specialists, **self.common_cancer_specialists}
+        
+        logger.info(f"Available cancer types in specialists dict: {list(all_specialists.keys())[:5]}...")
         
         # Try exact match first
-        if cancer_name in self.rare_cancer_specialists:
-            result = self.rare_cancer_specialists[cancer_name]
+        if cancer_name in all_specialists:
+            result = all_specialists[cancer_name]
             logger.info(f"Found {len(result)} specialists with exact match")
             return result
         
         # Try case-insensitive match
         cancer_name_lower = cancer_name.lower().strip()
-        for key in self.rare_cancer_specialists.keys():
+        for key in all_specialists.keys():
             if key.lower().strip() == cancer_name_lower:
-                result = self.rare_cancer_specialists[key]
+                result = all_specialists[key]
                 logger.info(f"Found {len(result)} specialists with case-insensitive match: '{key}'")
                 return result
         
         # Try partial match (in case of slight variations)
-        for key in self.rare_cancer_specialists.keys():
+        for key in all_specialists.keys():
             key_lower = key.lower().strip()
             if cancer_name_lower in key_lower or key_lower in cancer_name_lower:
-                result = self.rare_cancer_specialists[key]
+                result = all_specialists[key]
                 logger.info(f"Found {len(result)} specialists with partial match: '{key}'")
                 return result
         
@@ -140,7 +145,7 @@ class RareCancersService:
         min_experience: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """
-        Flatten all rare-cancer specialists into a single list.
+        Flatten all cancer specialists (rare and common) into a single list.
         Supports light filtering for the Find Oncologists page.
         """
         results: List[Dict[str, Any]] = []
@@ -148,7 +153,10 @@ class RareCancersService:
         cancer_q = cancer_name.lower() if cancer_name else None
         region_q = region.lower() if region else None
 
-        for cancer, specialists in self.rare_cancer_specialists.items():
+        # Combine both rare and common cancer specialists
+        all_specialists = {**self.rare_cancer_specialists, **self.common_cancer_specialists}
+
+        for cancer, specialists in all_specialists.items():
             for doc in specialists:
                 entry = {
                     **doc,
