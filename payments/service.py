@@ -1,11 +1,13 @@
 """
 Payment service for RazorPay integration
 """
+# Import Razorpay SDK with alias to avoid naming collisions
 try:
-    import razorpay
+    import razorpay as razorpay_sdk
 except ImportError:
-    razorpay = None
+    razorpay_sdk = None
     # Will be handled in service initialization
+
 import os
 import hmac
 import hashlib
@@ -20,10 +22,37 @@ logger = logging.getLogger(__name__)
 RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID", "")
 RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "")
 
-# Initialize RazorPay client
+
+def _get_razorpay_client():
+    """
+    Helper function to safely create Razorpay client.
+    Loads environment variables and validates they exist.
+    
+    Returns:
+        razorpay_sdk.Client: Initialized Razorpay client
+        
+    Raises:
+        ValueError: If razorpay SDK not installed or environment variables are not set
+    """
+    if razorpay_sdk is None:
+        raise ValueError("razorpay package not installed. Install with: pip install razorpay")
+    
+    if not RAZORPAY_KEY_ID or not RAZORPAY_KEY_SECRET:
+        raise ValueError(
+            "RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET must be set in environment variables"
+        )
+    
+    return razorpay_sdk.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+
+
+# Initialize RazorPay client lazily (only when needed)
 razorpay_client = None
-if RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET:
-    razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+if RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET and razorpay_sdk is not None:
+    try:
+        razorpay_client = _get_razorpay_client()
+    except Exception as e:
+        logger.warning(f"Failed to initialize Razorpay client: {str(e)}")
+        razorpay_client = None
 
 
 class PaymentService:
@@ -34,10 +63,15 @@ class PaymentService:
         self.payments_collection = db.payments
         self.client = razorpay_client
     
+    def _ensure_client(self):
+        """Ensure Razorpay client is available, create if needed."""
+        if self.client is None:
+            self.client = _get_razorpay_client()
+        return self.client
+    
     def create_order(self, amount: float, currency: str = "INR", receipt: Optional[str] = None, notes: Optional[dict] = None) -> Dict[str, Any]:
         """Create RazorPay order"""
-        if not self.client:
-            raise ValueError("RazorPay client not initialized. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in environment variables.")
+        client = self._ensure_client()
         
         if not receipt:
             receipt = f"receipt_{secrets.token_urlsafe(8)}"
@@ -50,7 +84,7 @@ class PaymentService:
                 "notes": notes or {}
             }
             
-            order = self.client.order.create(data=order_data)
+            order = client.order.create(data=order_data)
             return order
         except Exception as e:
             logger.error(f"Error creating RazorPay order: {str(e)}")
@@ -68,7 +102,7 @@ class PaymentService:
             hashlib.sha256
         ).hexdigest()
         
-        return hmac.compare_digest(generated_signature, razorpay_signature)
+        return secrets.compare_digest(generated_signature, razorpay_signature)
     
     async def save_payment(self, order_id: str, amount: float, currency: str, user_id: Optional[str] = None, service_type: Optional[str] = None) -> Dict[str, Any]:
         """Save payment record to database"""
@@ -110,4 +144,3 @@ class PaymentService:
         if payment:
             return dict(payment)
         return None
-

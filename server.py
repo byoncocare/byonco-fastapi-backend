@@ -668,6 +668,16 @@ try:
 except Exception as e:
     logger.error(f"❌ Failed to include payments_router: {e}")
 
+# Vayu Razorpay Routes
+# ======================================
+try:
+    from payments import razorpay as vayu_razorpay_router
+    app.include_router(vayu_razorpay_router.router)
+    logger.info("✅ Included vayu_razorpay_router")
+except Exception as e:
+    logger.error(f"❌ Failed to include vayu_razorpay_router: {e}")
+
+
 # ======================================
 # Get Started Routes
 # ======================================

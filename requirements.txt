@@ -26,6 +26,7 @@ openai==1.99.9
 # Payment Processing
 razorpay==1.4.2
 stripe==13.2.0
+setuptools>=80.0.0  # Required for razorpay pkg_resources
 
 # Utilities
 python-dateutil==2.9.0.post0

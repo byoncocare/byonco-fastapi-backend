@@ -1,12 +1,26 @@
 ﻿# env & secrets
 .env
 .env.*
+*.pem
+*.key
+*.secret
 
 # python cache
 __pycache__/
 *.py[cod]
+*.pyc
 .pytest_cache/
+
+# Virtual environment
+venv/
+env/
+ENV/
+.venv
 
 # IDE
 .vscode/
 .idea/
+
+# OS
+.DS_Store
+Thumbs.db
