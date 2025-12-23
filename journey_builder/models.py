@@ -51,3 +51,8 @@ class JourneyResponse(BaseModel):
     suggestions: Optional[Suggestions] = None
     disclaimer: Optional[str] = None
 
+
+
+
+
+
