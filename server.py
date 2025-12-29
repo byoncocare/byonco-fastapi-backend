@@ -636,6 +636,17 @@ from journey_builder.api_routes import create_api_router as create_journey_build
 journey_builder_router = create_journey_builder_router()
 app.include_router(journey_builder_router)
 
+# ======================================
+# Second Opinion AI Routes
+# ======================================
+try:
+    from second_opinion.api_routes import create_api_router as create_second_opinion_ai_router
+    second_opinion_ai_router = create_second_opinion_ai_router()
+    app.include_router(second_opinion_ai_router)
+    logger.info("✅ Included second_opinion_ai_router")
+except Exception as e:
+    logger.error(f"❌ Failed to include second_opinion_ai_router: {e}")
+
 # CORS middleware already added above after app creation
 
 # ======================================
