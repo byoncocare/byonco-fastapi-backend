@@ -143,11 +143,19 @@ class CostBreakdown(BaseModel):
 # Cost Calculation Response Model
 class CostCalculationResponse(BaseModel):
     total_cost_local: float
-    total_cost_inr: float
+    total_cost_usd: float  # USD conversion
+    total_cost_inr: float  # INR conversion (for backward compatibility)
     clinical_cost: float
+    clinical_cost_usd: float  # USD conversion
     non_clinical_cost: float
+    non_clinical_cost_usd: float  # USD conversion
     insurance_pays: float
+    insurance_pays_usd: float  # USD conversion
     patient_out_of_pocket: float
+    patient_out_of_pocket_usd: float  # USD conversion
     breakdown: CostBreakdown
-    currency: str
+    breakdown_usd: CostBreakdown  # USD breakdown
+    currency_code: str  # e.g., 'INR', 'USD', 'EUR'
+    currency_symbol: str  # e.g., '₹', '$', '€'
+    exchange_rate_to_usd: float  # Exchange rate used
     assumptions: List[str] = []
