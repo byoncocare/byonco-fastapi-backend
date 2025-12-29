@@ -13,6 +13,8 @@ from default_data import (
 
 logger = logging.getLogger(__name__)
 
+# Indentation errors fixed - all code blocks properly aligned
+
 class CostCalculatorService:
     def __init__(self, db):
         self.db = db
