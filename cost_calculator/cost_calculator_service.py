@@ -235,8 +235,8 @@ class CostCalculatorService:
             accommodation_level = request.accommodation_level or 'mid'
             accommodation_rate = normalize_number(accommodation_costs_data.get(accommodation_level, 0), 0)
             total_accommodation = accommodation_rate * stay_duration * (companions + 1)
-                breakdown.accommodation = round(total_accommodation, 2)
-                non_clinical_cost += total_accommodation
+            breakdown.accommodation = round(total_accommodation, 2)
+            non_clinical_cost += total_accommodation
             
             # Travel costs (estimated)
             travel_type = request.travel_type or 'economy'
@@ -280,12 +280,12 @@ class CostCalculatorService:
                 insurer = None
                 try:
                     if self.db and request.insurer:
-                insurer = await self.db.insurers.find_one({'id': request.insurer})
+                        insurer = await self.db.insurers.find_one({'id': request.insurer})
                 except Exception as e:
                     logger.warning(f"Could not fetch insurer from DB: {e}")
                 
-                    # Get coverage percentages
-                    if request.custom_coverage:
+                # Get coverage percentages
+                if request.custom_coverage:
                     inpatient_cov = clamp_number(normalize_number(request.inpatient_coverage, 80), 0, 100) / 100.0
                     outpatient_cov = clamp_number(normalize_number(request.outpatient_coverage, 50), 0, 100) / 100.0
                     drug_cov = clamp_number(normalize_number(request.drug_coverage, 70), 0, 100) / 100.0
@@ -295,7 +295,7 @@ class CostCalculatorService:
                     outpatient_cov = normalize_number(insurer.get('outpatient_coverage', 50), 50) / 100.0
                     drug_cov = normalize_number(insurer.get('drug_coverage', 70), 70) / 100.0
                     assumptions.append(f"Insurance: {insurer.get('name', 'Unknown')} - Inpatient {inpatient_cov*100}%, Outpatient {outpatient_cov*100}%, Drugs {drug_cov*100}%")
-                    else:
+                else:
                     # Use defaults
                     default_cov = DEFAULT_INSURANCE_COVERAGE
                     inpatient_cov = default_cov['inpatient_coverage'] / 100.0
@@ -303,25 +303,25 @@ class CostCalculatorService:
                     drug_cov = default_cov['drug_coverage'] / 100.0
                     assumptions.append(f"Using default insurance coverage: Inpatient {inpatient_cov*100}%, Outpatient {outpatient_cov*100}%, Drugs {drug_cov*100}%")
                     confidence_level = "Medium" if confidence_level == "High" else confidence_level
-                    
-                    # Calculate covered amounts
-                    # Inpatient: Surgery, Transplant, Hospitalization
-                    inpatient_eligible = breakdown.surgery + breakdown.transplant
-                    inpatient_covered = inpatient_eligible * inpatient_cov
-                    
-                    # Outpatient: Radiation, Diagnostics
-                    outpatient_eligible = breakdown.radiation + breakdown.diagnostics
-                    outpatient_covered = outpatient_eligible * outpatient_cov
-                    
-                    # Drugs: Chemotherapy
-                    drug_covered = breakdown.chemotherapy * drug_cov
-                    
-                    total_covered = inpatient_covered + outpatient_covered + drug_covered
-                    
-                    # Apply deductible
+                
+                # Calculate covered amounts
+                # Inpatient: Surgery, Transplant, Hospitalization
+                inpatient_eligible = breakdown.surgery + breakdown.transplant
+                inpatient_covered = inpatient_eligible * inpatient_cov
+                
+                # Outpatient: Radiation, Diagnostics
+                outpatient_eligible = breakdown.radiation + breakdown.diagnostics
+                outpatient_covered = outpatient_eligible * outpatient_cov
+                
+                # Drugs: Chemotherapy
+                drug_covered = breakdown.chemotherapy * drug_cov
+                
+                total_covered = inpatient_covered + outpatient_covered + drug_covered
+                
+                # Apply deductible
                 covered_after_deductible = max(0.0, total_covered - deductible)
-                    
-                    # Apply co-pay
+                
+                # Apply co-pay
                 insurance_pays = covered_after_deductible * (1.0 - copay_percent / 100.0)
                 
                 assumptions.append(f"Insurance deductible: {deductible} {country.get('currency', 'USD')}, Co-pay: {copay_percent}%")
