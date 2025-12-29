@@ -14,6 +14,15 @@ from datetime import datetime, timezone
 import asyncio
 
 # ======================================
+# Logging Configuration
+# ======================================
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
+
+# ======================================
 # Load environment variables
 # ======================================
 ROOT_DIR = Path(__file__).parent
@@ -648,15 +657,6 @@ except Exception as e:
     logger.error(f"❌ Failed to include second_opinion_ai_router: {e}")
 
 # CORS middleware already added above after app creation
-
-# ======================================
-# Logging
-# ======================================
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
 
 
 # ======================================
