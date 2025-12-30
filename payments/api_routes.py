@@ -1,7 +1,7 @@
 """
 API routes for Payment/RazorPay
 """
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Body
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from .models import PaymentRequest, PaymentVerification, PaymentResponse, RazorPayOrderResponse
 from .service import PaymentService
@@ -149,7 +149,7 @@ def create_api_router(db):
     # Vayu-specific Razorpay endpoints (matches frontend expectations)
     @razorpay_router.post("/create-order")
     async def create_vayu_order(
-        request_data: dict,
+        request_data: dict = Body(...),
         user_id: Optional[str] = Depends(get_current_user_id)
     ):
         """Create RazorPay order for Vayu checkout (accepts cart format)"""
@@ -212,7 +212,7 @@ def create_api_router(db):
             raise HTTPException(status_code=500, detail="Failed to create order")
     
     @razorpay_router.post("/verify")
-    async def verify_vayu_payment(verification_data: dict):
+    async def verify_vayu_payment(verification_data: dict = Body(...)):
         """Verify RazorPay payment for Vayu (accepts frontend format)"""
         try:
             razorpay_order_id = verification_data.get("razorpayOrderId")

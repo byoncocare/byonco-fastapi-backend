@@ -745,7 +745,6 @@ from payments.api_routes import create_api_router as create_payments_router
 payments_router, razorpay_router = create_payments_router(db)
 app.include_router(payments_router)
 app.include_router(razorpay_router)
-app.include_router(razorpay_router)
 
 # ======================================
 # Get Started Routes
