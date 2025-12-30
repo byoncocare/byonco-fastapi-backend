@@ -522,7 +522,7 @@ async def submit_contact(request: ContactRequest):
         
         return {
             "id": contact_id,
-            "message": "Contact form submitted successfully",
+            "message": "Our team will contact you soon. Thanks for connecting with ByOnco.",
             "status": "success"
         }
     except Exception as e:
