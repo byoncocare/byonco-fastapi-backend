@@ -502,23 +502,45 @@ async def get_appointments(patient_email: Optional[str] = None):
 # -------------------------
 # Contact Form (Free Trial / Request Demo)
 # -------------------------
+# Import email service
+from email_service import EmailService
+
+# Initialize email service
+email_service = EmailService()
+
 @api_router.post("/contact", response_model=ContactResponse)
 async def submit_contact(request: ContactRequest):
     """Handle contact form submissions from Free Trial / Request Demo buttons"""
+    contact_id = None
     try:
         contact_id = str(uuid.uuid4())
         
         contact_doc = {
             "id": contact_id,
-            "name": request.name,
-            "email": request.email.lower(),
-            "phone": request.phone,
-            "message": request.message,
+            "name": request.name.strip(),
+            "email": request.email.lower().strip(),
+            "phone": request.phone.strip(),
+            "message": request.message.strip(),
             "status": "pending",
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
         
+        # Save to database
         await db.contacts.insert_one(contact_doc)
+        logger.info(f"Contact form submission saved: {contact_id}")
+        
+        # Send email notification (non-blocking, don't fail if email fails)
+        try:
+            await email_service.send_contact_notification(
+                name=request.name,
+                email=request.email,
+                phone=request.phone,
+                message=request.message,
+                contact_id=contact_id
+            )
+        except Exception as email_error:
+            logger.warning(f"Failed to send email notification for contact {contact_id}: {email_error}")
+            # Don't fail the request if email fails
         
         return {
             "id": contact_id,
@@ -526,13 +548,112 @@ async def submit_contact(request: ContactRequest):
             "status": "success"
         }
     except Exception as e:
-        logging.error(f"Contact form error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Contact form error for contact {contact_id}: {e}", exc_info=True)
+        # Provide more specific error messages
+        if "duplicate key" in str(e).lower():
+            raise HTTPException(
+                status_code=400,
+                detail="A submission with this information already exists. Please contact us directly."
+            )
+        elif "timeout" in str(e).lower() or "connection" in str(e).lower():
+            raise HTTPException(
+                status_code=503,
+                detail="Database connection timeout. Please try again in a few moments."
+            )
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail="Our service is temporarily unavailable. Please try again in a few moments."
+            )
 
 
 # -------------------------
 # Stats
 # -------------------------
+# -------------------------
+# Admin Endpoints - View Contact Submissions
+# -------------------------
+@api_router.get("/contacts", response_model=List[dict])
+async def get_contacts(
+    status: Optional[str] = None,
+    limit: int = 100
+):
+    """
+    Get all contact form submissions (Admin only)
+    Query params:
+    - status: Filter by status (pending, contacted, resolved)
+    - limit: Maximum number of results (default: 100, max: 1000)
+    """
+    try:
+        query = {}
+        if status:
+            query["status"] = status
+        
+        contacts = await db.contacts.find(query).sort("created_at", -1).limit(min(limit, 1000)).to_list(min(limit, 1000))
+        
+        # Convert ObjectId to string and remove _id
+        result = []
+        for contact in contacts:
+            contact_dict = dict(contact)
+            contact_dict.pop("_id", None)
+            result.append(contact_dict)
+        
+        return result
+    except Exception as e:
+        logger.error(f"Error getting contacts: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve contacts")
+
+
+@api_router.get("/contact/{contact_id}", response_model=dict)
+async def get_contact(contact_id: str):
+    """Get a specific contact submission by ID"""
+    try:
+        contact = await db.contacts.find_one({"id": contact_id})
+        if not contact:
+            raise HTTPException(status_code=404, detail="Contact not found")
+        
+        contact_dict = dict(contact)
+        contact_dict.pop("_id", None)
+        return contact_dict
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting contact {contact_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve contact")
+
+
+@api_router.patch("/contact/{contact_id}/status")
+async def update_contact_status(contact_id: str, status: str):
+    """Update contact submission status"""
+    try:
+        valid_statuses = ["pending", "contacted", "resolved", "archived"]
+        if status not in valid_statuses:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}"
+            )
+        
+        result = await db.contacts.update_one(
+            {"id": contact_id},
+            {
+                "$set": {
+                    "status": status,
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }
+            }
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Contact not found")
+        
+        return {"id": contact_id, "status": status, "message": "Status updated successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating contact status {contact_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update contact status")
+
+
 @api_router.get("/stats")
 async def get_stats():
     total_hospitals = sum(len(city_hospitals) for city_hospitals in HOSPITALS.values())

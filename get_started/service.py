@@ -6,6 +6,15 @@ from datetime import datetime, timezone
 from .models import GetStartedRequest, GetStartedSubmission
 import logging
 import uuid
+import sys
+from pathlib import Path
+
+# Add parent directory to path to import email_service
+_parent_dir = Path(__file__).parent.parent
+if str(_parent_dir) not in sys.path:
+    sys.path.insert(0, str(_parent_dir))
+
+from email_service import EmailService
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +25,7 @@ class GetStartedService:
     def __init__(self, db):
         self.db = db
         self.submissions_collection = db.get_started_submissions
+        self.email_service = EmailService()
     
     async def create_submission(self, request: GetStartedRequest) -> Dict[str, Any]:
         """Create a new Get Started submission"""
@@ -45,6 +55,14 @@ class GetStartedService:
             }
             
             await self.submissions_collection.insert_one(submission_doc)
+            logger.info(f"Get Started submission saved: {submission_doc['id']}")
+            
+            # Send email notification (non-blocking, don't fail if email fails)
+            try:
+                await self.email_service.send_get_started_notification(submission_doc)
+            except Exception as email_error:
+                logger.warning(f"Failed to send email notification for submission {submission_doc['id']}: {email_error}")
+                # Don't fail the request if email fails
             
             return {
                 "id": submission_doc["id"],
