@@ -22,6 +22,7 @@ def create_api_router(db):
     Create and return the API router for payments.
     """
     router = APIRouter(prefix="/api/payments", tags=["payments"])
+    razorpay_router = APIRouter(prefix="/api/payments/razorpay", tags=["razorpay"])
     payment_service = PaymentService(db)
     auth_service = AuthService(db)
     
@@ -140,5 +141,5 @@ def create_api_router(db):
                 detail="Failed to get payment status"
             )
     
-    return router
+    return router, razorpay_router
 
