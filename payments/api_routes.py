@@ -208,11 +208,17 @@ def create_api_router(db):
                 "amount": total,
                 "currency": "INR"
             }
+        except HTTPException:
+            # Re-raise HTTPException as-is (from get_razorpay_client or other HTTP errors)
+            raise
         except ValueError as e:
+            logger.error(f"ValueError creating Vayu order: {str(e)}", exc_info=True)
             raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
-            logger.error(f"Error creating Vayu order: {str(e)}")
-            raise HTTPException(status_code=500, detail="Failed to create order")
+            logger.error(f"Error creating Vayu order: {str(e)}", exc_info=True)
+            # Preserve the actual error message for debugging
+            error_detail = str(e) if str(e) else "Failed to create order"
+            raise HTTPException(status_code=500, detail=error_detail)
     
     @razorpay_router.post("/verify")
     async def verify_vayu_payment(verification_data: dict = Body(...)):
