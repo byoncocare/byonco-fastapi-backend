@@ -252,5 +252,18 @@ def create_api_router(db):
             logger.error(f"Error verifying Vayu payment: {str(e)}")
             raise HTTPException(status_code=500, detail="Failed to verify payment")
     
+    @razorpay_router.get("/health")
+    async def razorpay_health():
+        """Health check endpoint for Razorpay configuration"""
+        import os
+        key_id_present = bool(os.getenv("RAZORPAY_KEY_ID", ""))
+        key_secret_present = bool(os.getenv("RAZORPAY_KEY_SECRET", ""))
+        
+        return {
+            "ok": True,
+            "key_id_present": key_id_present,
+            "key_secret_present": key_secret_present
+        }
+    
     return router, razorpay_router
 

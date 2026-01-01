@@ -17,13 +17,31 @@ import logging
 logger = logging.getLogger(__name__)
 
 # RazorPay credentials (should be in .env)
-RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID", "")
-RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "")
+# Use os.getenv() explicitly to ensure we read from environment
+RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "")
+RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "")
+
+# Log environment variable presence (safe - no secrets)
+key_id_present = bool(RAZORPAY_KEY_ID)
+key_secret_present = bool(RAZORPAY_KEY_SECRET)
+logger.info(f"Razorpay env present? id={key_id_present} secret={key_secret_present}")
 
 # Initialize RazorPay client
 razorpay_client = None
 if razorpay and RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET:
-    razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+    try:
+        razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+        logger.info("Razorpay client initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize Razorpay client: {str(e)}")
+        razorpay_client = None
+else:
+    if not razorpay:
+        logger.warning("Razorpay package not installed")
+    elif not RAZORPAY_KEY_ID:
+        logger.warning("RAZORPAY_KEY_ID not set in environment")
+    elif not RAZORPAY_KEY_SECRET:
+        logger.warning("RAZORPAY_KEY_SECRET not set in environment")
 
 
 class PaymentService:

@@ -782,6 +782,21 @@ except Exception as e:
 
 
 # ======================================
+# Startup Handler - Log Razorpay env status
+# ======================================
+@app.on_event("startup")
+async def startup_log_razorpay():
+    """Log Razorpay environment variable status at startup"""
+    import os
+    key_id_present = bool(os.getenv("RAZORPAY_KEY_ID", ""))
+    key_secret_present = bool(os.getenv("RAZORPAY_KEY_SECRET", ""))
+    logger.info(f"Razorpay env present? id={key_id_present} secret={key_secret_present}")
+    if key_id_present and key_secret_present:
+        logger.info("✅ Razorpay environment variables configured")
+    else:
+        logger.warning("⚠️ Razorpay environment variables missing - payment features will not work")
+
+# ======================================
 # Shutdown Handler
 # ======================================
 @app.on_event("shutdown")
