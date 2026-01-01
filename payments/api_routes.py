@@ -197,9 +197,12 @@ def create_api_router(db):
                 service_type="vayu_order"
             )
             
+            # Get key ID for response (read fresh from env)
+            key_id = os.getenv("RAZORPAY_KEY_ID", "").strip()
+            
             # Return format expected by Vayu frontend
             return {
-                "keyId": RAZORPAY_KEY_ID,
+                "keyId": key_id,
                 "razorpayOrderId": order["id"],
                 "orderId": internal_order_id,
                 "amount": total,
