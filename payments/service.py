@@ -1,11 +1,6 @@
 """
 Payment service for RazorPay integration
 """
-try:
-    import razorpay
-except ImportError:
-    razorpay = None
-    # Will be handled in service initialization
 import os
 import hmac
 import hashlib
@@ -15,6 +10,16 @@ from datetime import datetime, timezone
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Try to import razorpay - with better error handling
+try:
+    import razorpay
+    logger.info("✅ Razorpay package imported successfully")
+except ImportError as e:
+    razorpay = None
+    logger.error(f"❌ Razorpay package import failed: {e}")
+    logger.error("Please ensure 'razorpay' is installed: pip install razorpay")
+    # Will be handled in service initialization
 
 # Cache for the client (lazy initialization)
 _razorpay_client_cache = None
