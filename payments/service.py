@@ -86,7 +86,17 @@ class PaymentService:
     def create_order(self, amount: float, currency: str = "INR", receipt: Optional[str] = None, notes: Optional[dict] = None) -> Dict[str, Any]:
         """Create RazorPay order"""
         # Get client lazily (will raise HTTPException if not available)
-        client = get_razorpay_client()
+        try:
+            client = get_razorpay_client()
+        except HTTPException:
+            # Re-raise HTTPException as-is
+            raise
+        except Exception as e:
+            logger.error(f"Failed to get Razorpay client: {str(e)}", exc_info=True)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to initialize Razorpay client: {str(e)}"
+            )
         
         if not receipt:
             receipt = f"receipt_{secrets.token_urlsafe(8)}"
@@ -99,11 +109,14 @@ class PaymentService:
                 "notes": notes or {}
             }
             
+            logger.info(f"Creating Razorpay order: amount={amount}, currency={currency}, receipt={receipt}")
             order = client.order.create(data=order_data)
+            logger.info(f"Razorpay order created successfully: order_id={order.get('id')}")
             return order
         except Exception as e:
             logger.error(f"Error creating RazorPay order: {str(e)}", exc_info=True)
-            raise
+            # Re-raise as ValueError so route handler can convert to HTTPException
+            raise ValueError(f"Failed to create Razorpay order: {str(e)}")
     
     def verify_payment(self, razorpay_order_id: str, razorpay_payment_id: str, razorpay_signature: str) -> bool:
         """Verify RazorPay payment signature"""
