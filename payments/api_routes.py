@@ -209,11 +209,16 @@ def create_api_router(db):
                 "currency": "INR"
             }
         except HTTPException:
-            # Re-raise HTTPException as-is (from get_razorpay_client or other HTTP errors)
+            # Re-raise HTTPException as-is (from other HTTP errors)
             raise
         except ValueError as e:
-            logger.error(f"ValueError creating Vayu order: {str(e)}", exc_info=True)
-            raise HTTPException(status_code=400, detail=str(e))
+            error_msg = str(e)
+            logger.error(f"ValueError creating Vayu order: {error_msg}", exc_info=True)
+            # Check if it's an initialization error (500) or validation error (400)
+            if "environment variable" in error_msg or "not installed" in error_msg or "Failed to initialize" in error_msg:
+                raise HTTPException(status_code=500, detail=error_msg)
+            else:
+                raise HTTPException(status_code=400, detail=error_msg)
         except Exception as e:
             logger.error(f"Error creating Vayu order: {str(e)}", exc_info=True)
             # Preserve the actual error message for debugging
