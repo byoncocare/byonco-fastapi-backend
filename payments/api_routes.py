@@ -18,8 +18,8 @@ import logging
 logger = logging.getLogger(__name__)
 security = HTTPBearer(auto_error=False)
 
-# Get Razorpay key ID for frontend
-RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID", "")
+# Note: RAZORPAY_KEY_ID is now read directly from env when needed
+# No global initialization to avoid silent failures
 
 
 def create_api_router(db):
@@ -223,7 +223,7 @@ def create_api_router(db):
             if not all([razorpay_order_id, razorpay_payment_id, razorpay_signature]):
                 raise HTTPException(status_code=400, detail="Missing payment verification data")
             
-            # Verify signature
+            # Verify signature (reads secret from env directly)
             is_valid = payment_service.verify_payment(
                 razorpay_order_id=razorpay_order_id,
                 razorpay_payment_id=razorpay_payment_id,
@@ -249,7 +249,7 @@ def create_api_router(db):
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Error verifying Vayu payment: {str(e)}")
+            logger.error(f"Error verifying Vayu payment: {str(e)}", exc_info=True)
             raise HTTPException(status_code=500, detail="Failed to verify payment")
     
     @razorpay_router.get("/health")
@@ -263,6 +263,40 @@ def create_api_router(db):
             "ok": True,
             "key_id_present": key_id_present,
             "key_secret_present": key_secret_present
+        }
+    
+    @razorpay_router.get("/env-check")
+    async def razorpay_env_check():
+        """Diagnostic endpoint for Razorpay environment variables (safe - no secrets)"""
+        import os
+        import subprocess
+        
+        key_id = os.getenv("RAZORPAY_KEY_ID", "").strip()
+        key_secret = os.getenv("RAZORPAY_KEY_SECRET", "").strip()
+        
+        # Get git commit hash if available
+        service_version = "unknown"
+        try:
+            result = subprocess.run(
+                ["git", "rev-parse", "--short", "HEAD"],
+                capture_output=True,
+                text=True,
+                timeout=2,
+                cwd=Path(__file__).parent.parent.parent
+            )
+            if result.returncode == 0:
+                service_version = result.stdout.strip()
+        except Exception:
+            pass  # Ignore if git is not available
+        
+        return {
+            "key_id_present": bool(key_id),
+            "key_secret_present": bool(key_secret),
+            "key_id_len": len(key_id),
+            "key_secret_len": len(key_secret),
+            "key_id_prefix": key_id[:6] if len(key_id) >= 6 else "",
+            "key_id_suffix": key_id[-4:] if len(key_id) >= 4 else "",
+            "service_version": service_version
         }
     
     return router, razorpay_router

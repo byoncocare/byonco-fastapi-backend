@@ -13,35 +13,67 @@ import secrets
 from typing import Optional, Dict, Any
 from datetime import datetime, timezone
 import logging
+from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
 
-# RazorPay credentials (should be in .env)
-# Use os.getenv() explicitly to ensure we read from environment
-RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "")
-RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "")
+# Cache for the client (lazy initialization)
+_razorpay_client_cache = None
 
-# Log environment variable presence (safe - no secrets)
-key_id_present = bool(RAZORPAY_KEY_ID)
-key_secret_present = bool(RAZORPAY_KEY_SECRET)
-logger.info(f"Razorpay env present? id={key_id_present} secret={key_secret_present}")
 
-# Initialize RazorPay client
-razorpay_client = None
-if razorpay and RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET:
+def get_razorpay_client():
+    """
+    Lazy initialization of Razorpay client.
+    Creates the client on demand and caches it.
+    """
+    global _razorpay_client_cache
+    
+    # Return cached client if available
+    if _razorpay_client_cache is not None:
+        return _razorpay_client_cache
+    
+    # Check if razorpay package is available
+    if razorpay is None:
+        logger.error("Razorpay package not installed")
+        raise HTTPException(
+            status_code=500,
+            detail="Razorpay package not installed. Please install razorpay package."
+        )
+    
+    # Read environment variables EXACTLY
+    key_id = os.getenv("RAZORPAY_KEY_ID", "")
+    key_secret = os.getenv("RAZORPAY_KEY_SECRET", "")
+    
+    # Strip whitespace
+    key_id = key_id.strip() if key_id else ""
+    key_secret = key_secret.strip() if key_secret else ""
+    
+    # Validate that both are present and non-empty
+    if not key_id:
+        logger.error("RAZORPAY_KEY_ID is missing or empty")
+        raise HTTPException(
+            status_code=500,
+            detail="RAZORPAY_KEY_ID environment variable is not set or is empty"
+        )
+    
+    if not key_secret:
+        logger.error("RAZORPAY_KEY_SECRET is missing or empty")
+        raise HTTPException(
+            status_code=500,
+            detail="RAZORPAY_KEY_SECRET environment variable is not set or is empty"
+        )
+    
+    # Create and cache the client
     try:
-        razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
-        logger.info("Razorpay client initialized successfully")
+        _razorpay_client_cache = razorpay.Client(auth=(key_id, key_secret))
+        logger.info(f"Razorpay init ok: key_id_len={len(key_id)}, secret_len={len(key_secret)}")
+        return _razorpay_client_cache
     except Exception as e:
-        logger.error(f"Failed to initialize Razorpay client: {str(e)}")
-        razorpay_client = None
-else:
-    if not razorpay:
-        logger.warning("Razorpay package not installed")
-    elif not RAZORPAY_KEY_ID:
-        logger.warning("RAZORPAY_KEY_ID not set in environment")
-    elif not RAZORPAY_KEY_SECRET:
-        logger.warning("RAZORPAY_KEY_SECRET not set in environment")
+        logger.error(f"Failed to initialize Razorpay client: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to initialize Razorpay client: {str(e)}"
+        )
 
 
 class PaymentService:
@@ -50,12 +82,11 @@ class PaymentService:
     def __init__(self, db):
         self.db = db
         self.payments_collection = db.payments
-        self.client = razorpay_client
     
     def create_order(self, amount: float, currency: str = "INR", receipt: Optional[str] = None, notes: Optional[dict] = None) -> Dict[str, Any]:
         """Create RazorPay order"""
-        if not self.client:
-            raise ValueError("RazorPay client not initialized. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in environment variables.")
+        # Get client lazily (will raise HTTPException if not available)
+        client = get_razorpay_client()
         
         if not receipt:
             receipt = f"receipt_{secrets.token_urlsafe(8)}"
@@ -68,20 +99,24 @@ class PaymentService:
                 "notes": notes or {}
             }
             
-            order = self.client.order.create(data=order_data)
+            order = client.order.create(data=order_data)
             return order
         except Exception as e:
-            logger.error(f"Error creating RazorPay order: {str(e)}")
+            logger.error(f"Error creating RazorPay order: {str(e)}", exc_info=True)
             raise
     
     def verify_payment(self, razorpay_order_id: str, razorpay_payment_id: str, razorpay_signature: str) -> bool:
         """Verify RazorPay payment signature"""
-        if not RAZORPAY_KEY_SECRET:
+        # Read secret directly from env (for signature verification)
+        key_secret = os.getenv("RAZORPAY_KEY_SECRET", "").strip()
+        
+        if not key_secret:
+            logger.error("RAZORPAY_KEY_SECRET is missing for signature verification")
             raise ValueError("RazorPay key secret not configured")
         
         message = f"{razorpay_order_id}|{razorpay_payment_id}"
         generated_signature = hmac.new(
-            RAZORPAY_KEY_SECRET.encode(),
+            key_secret.encode(),
             message.encode(),
             hashlib.sha256
         ).hexdigest()
@@ -128,4 +163,3 @@ class PaymentService:
         if payment:
             return dict(payment)
         return None
-
