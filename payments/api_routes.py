@@ -285,6 +285,22 @@ def create_api_router(db):
         import os
         import subprocess
         
+        # Check if razorpay package is installed
+        razorpay_installed = False
+        razorpay_version = "unknown"
+        razorpay_error = None
+        try:
+            import razorpay
+            razorpay_installed = True
+            try:
+                razorpay_version = razorpay.__version__
+            except:
+                razorpay_version = "installed (version unknown)"
+        except ImportError as e:
+            razorpay_installed = False
+            razorpay_error = str(e)
+            razorpay_version = f"not installed: {razorpay_error}"
+        
         key_id = os.getenv("RAZORPAY_KEY_ID", "").strip()
         key_secret = os.getenv("RAZORPAY_KEY_SECRET", "").strip()
         
@@ -304,6 +320,9 @@ def create_api_router(db):
             pass  # Ignore if git is not available
         
         return {
+            "razorpay_installed": razorpay_installed,
+            "razorpay_version": razorpay_version,
+            "razorpay_error": razorpay_error,
             "key_id_present": bool(key_id),
             "key_secret_present": bool(key_secret),
             "key_id_len": len(key_id),
