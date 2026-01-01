@@ -29,11 +29,24 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
 # ======================================
+# Environment Variable Helper (strips whitespace/newlines)
+# ======================================
+def env(name: str, default: str = "") -> str:
+    """Get environment variable and strip all whitespace/newlines"""
+    value = os.environ.get(name, default) or ""
+    return value.strip()
+
+# ======================================
 # MongoDB Connection
 # ======================================
-mongo_url = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
+mongo_url = env("MONGO_URL", "mongodb://localhost:27017")
+# Sanitize URL: remove any whitespace/newlines that might be in query params
+mongo_url = mongo_url.replace("\n", "").replace("\r", "").replace(" ", "")
+db_name = env("DB_NAME", "test_database")
+
+# Initialize MongoDB client
 client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ.get("DB_NAME", "test_database")]
+db = client[db_name]
 
 # ======================================
 # FastAPI App + Router
@@ -703,6 +716,52 @@ async def root():
             "doctors": "/api/doctors"
         },
         "registered_routes": routes[:20]  # Show first 20 routes for debugging
+    }
+
+@api_router.get("/debug/mongo-config")
+async def debug_mongo_config():
+    """Debug endpoint to check MongoDB configuration (safe - no credentials)"""
+    raw_mongo_url = os.environ.get("MONGO_URL", "")
+    raw_db_name = os.environ.get("DB_NAME", "")
+    
+    # Check for newlines/whitespace
+    mongo_url_has_newline = "\n" in raw_mongo_url or "\r" in raw_mongo_url
+    db_name_has_newline = "\n" in raw_db_name or "\r" in raw_db_name
+    
+    # Get sanitized values
+    clean_mongo_url = env("MONGO_URL", "")
+    clean_db_name = env("DB_NAME", "")
+    
+    # Check if writeConcern is in URL
+    write_concern_in_url = "w=" in clean_mongo_url or "writeConcern" in clean_mongo_url
+    
+    # Extract writeConcern value if present
+    write_concern_value = None
+    if write_concern_in_url:
+        import re
+        w_match = re.search(r'[?&]w=([^&]+)', clean_mongo_url)
+        if w_match:
+            write_concern_value = w_match.group(1)
+    
+    # Check client write concern (if set)
+    client_write_concern = None
+    try:
+        if hasattr(client, 'write_concern'):
+            client_write_concern = repr(client.write_concern)
+    except:
+        pass
+    
+    return {
+        "mongo_url_has_newline": mongo_url_has_newline,
+        "db_name_has_newline": db_name_has_newline,
+        "mongo_url_length": len(raw_mongo_url),
+        "db_name_length": len(raw_db_name),
+        "mongo_url_preview": clean_mongo_url[:50] + "..." if len(clean_mongo_url) > 50 else clean_mongo_url,
+        "db_name": clean_db_name,
+        "write_concern_in_url": write_concern_in_url,
+        "write_concern_value": repr(write_concern_value) if write_concern_value else None,
+        "client_write_concern": client_write_concern,
+        "sanitized_mongo_url_has_newline": "\n" in clean_mongo_url or "\r" in clean_mongo_url
     }
 
 app.include_router(api_router)

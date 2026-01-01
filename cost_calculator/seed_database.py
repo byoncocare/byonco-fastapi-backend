@@ -12,11 +12,19 @@ from seed_data import (
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
+def env(name: str, default: str = "") -> str:
+    """Get environment variable and strip all whitespace/newlines"""
+    value = os.environ.get(name, default) or ""
+    return value.strip()
+
 async def seed_database():
     """Seed MongoDB with initial data"""
-    mongo_url = os.environ['MONGO_URL']
+    mongo_url = env('MONGO_URL')
+    # Sanitize URL: remove any whitespace/newlines that might be in query params
+    mongo_url = mongo_url.replace("\n", "").replace("\r", "").replace(" ", "")
+    db_name = env('DB_NAME')
     client = AsyncIOMotorClient(mongo_url)
-    db = client[os.environ['DB_NAME']]
+    db = client[db_name]
     
     print("Starting database seeding...")
     
