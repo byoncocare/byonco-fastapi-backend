@@ -13,7 +13,6 @@ import secrets
 from typing import Optional, Dict, Any
 from datetime import datetime, timezone
 import logging
-from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +24,7 @@ def get_razorpay_client():
     """
     Lazy initialization of Razorpay client.
     Creates the client on demand and caches it.
+    Raises ValueError if client cannot be initialized (route handler will convert to HTTPException).
     """
     global _razorpay_client_cache
     
@@ -35,10 +35,7 @@ def get_razorpay_client():
     # Check if razorpay package is available
     if razorpay is None:
         logger.error("Razorpay package not installed")
-        raise HTTPException(
-            status_code=500,
-            detail="Razorpay package not installed. Please install razorpay package."
-        )
+        raise ValueError("Razorpay package not installed. Please install razorpay package.")
     
     # Read environment variables EXACTLY
     key_id = os.getenv("RAZORPAY_KEY_ID", "")
@@ -51,17 +48,11 @@ def get_razorpay_client():
     # Validate that both are present and non-empty
     if not key_id:
         logger.error("RAZORPAY_KEY_ID is missing or empty")
-        raise HTTPException(
-            status_code=500,
-            detail="RAZORPAY_KEY_ID environment variable is not set or is empty"
-        )
+        raise ValueError("RAZORPAY_KEY_ID environment variable is not set or is empty")
     
     if not key_secret:
         logger.error("RAZORPAY_KEY_SECRET is missing or empty")
-        raise HTTPException(
-            status_code=500,
-            detail="RAZORPAY_KEY_SECRET environment variable is not set or is empty"
-        )
+        raise ValueError("RAZORPAY_KEY_SECRET environment variable is not set or is empty")
     
     # Create and cache the client
     try:
@@ -70,10 +61,7 @@ def get_razorpay_client():
         return _razorpay_client_cache
     except Exception as e:
         logger.error(f"Failed to initialize Razorpay client: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to initialize Razorpay client: {str(e)}"
-        )
+        raise ValueError(f"Failed to initialize Razorpay client: {str(e)}")
 
 
 class PaymentService:
@@ -85,18 +73,8 @@ class PaymentService:
     
     def create_order(self, amount: float, currency: str = "INR", receipt: Optional[str] = None, notes: Optional[dict] = None) -> Dict[str, Any]:
         """Create RazorPay order"""
-        # Get client lazily (will raise HTTPException if not available)
-        try:
-            client = get_razorpay_client()
-        except HTTPException:
-            # Re-raise HTTPException as-is
-            raise
-        except Exception as e:
-            logger.error(f"Failed to get Razorpay client: {str(e)}", exc_info=True)
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to initialize Razorpay client: {str(e)}"
-            )
+        # Get client lazily (will raise ValueError if not available)
+        client = get_razorpay_client()
         
         if not receipt:
             receipt = f"receipt_{secrets.token_urlsafe(8)}"
