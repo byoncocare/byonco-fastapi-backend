@@ -34,6 +34,7 @@ def parse_webhook_payload(payload: Dict[str, Any]) -> List[IncomingMessage]:
     Parse Meta webhook payload and extract incoming text messages.
     Returns list of IncomingMessage objects.
     Ignores status updates (delivery receipts, read receipts, etc.)
+    Tolerant: returns empty list if payload structure is unexpected.
     """
     messages = []
     
@@ -58,73 +59,103 @@ def parse_webhook_payload(payload: Dict[str, Any]) -> List[IncomingMessage]:
         #   ]
         # }
         
+        if not isinstance(payload, dict):
+            logger.debug("Payload is not a dictionary")
+            return messages
+        
         if payload.get("object") != "whatsapp_business_account":
             logger.debug(f"Ignoring non-WhatsApp webhook: {payload.get('object')}")
             return messages
         
         entries = payload.get("entry", [])
+        if not entries:
+            logger.debug("No entries in webhook payload")
+            return messages
+        
+        if not isinstance(entries, list):
+            logger.debug("Entries is not a list")
+            return messages
+        
         for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            
             changes = entry.get("changes", [])
+            if not isinstance(changes, list):
+                continue
+            
             for change in changes:
+                if not isinstance(change, dict):
+                    continue
+                
                 value = change.get("value", {})
+                if not isinstance(value, dict):
+                    continue
                 
                 # Skip status updates (delivery receipts, read receipts)
                 if "statuses" in value:
                     logger.debug("Ignoring status update webhook")
                     continue
                 
-                # Extract messages
+                # Extract messages - tolerant if missing
                 message_list = value.get("messages", [])
-                contacts = value.get("contacts", [])
+                if not message_list:
+                    # No messages in this change - this is normal for some webhook types
+                    continue
                 
-                # Create contact lookup
-                contact_map = {}
-                for contact in contacts:
-                    wa_id = contact.get("wa_id")
-                    if wa_id:
-                        contact_map[wa_id] = contact
+                if not isinstance(message_list, list):
+                    continue
+                
+                contacts = value.get("contacts", [])
+                if not isinstance(contacts, list):
+                    contacts = []
                 
                 # Parse each message
                 for msg in message_list:
+                    if not isinstance(msg, dict):
+                        continue
+                    
                     try:
+                        # Only process text messages
+                        msg_type = msg.get("type", "")
+                        if msg_type != "text":
+                            logger.debug(f"Ignoring non-text message type: {msg_type}")
+                            continue
+                        
                         wa_id = msg.get("from")
                         if not wa_id:
-                            logger.warning("Message missing 'from' field")
+                            logger.debug("Message missing 'from' field")
                             continue
                         
                         message_id = msg.get("id")
                         if not message_id:
-                            logger.warning("Message missing 'id' field")
+                            logger.debug("Message missing 'id' field")
                             continue
                         
                         timestamp = msg.get("timestamp", "")
                         
                         # Extract text message
                         text_obj = msg.get("text")
-                        if text_obj:
-                            message_body = text_obj.get("body", "").strip()
-                            if message_body:
-                                messages.append(IncomingMessage(
-                                    wa_id=wa_id,
-                                    message_id=message_id,
-                                    timestamp=timestamp,
-                                    message_body=message_body,
-                                    message_type="text"
-                                ))
-                                logger.info(f"Parsed text message from {wa_id}: {message_body[:50]}")
+                        if not text_obj or not isinstance(text_obj, dict):
+                            continue
                         
-                        # TODO: Handle interactive replies (button clicks, list selections)
-                        # interactive = msg.get("interactive")
-                        # if interactive:
-                        #     # Handle button/list selections
-                        #     pass
+                        message_body = text_obj.get("body", "").strip()
+                        if message_body:
+                            messages.append(IncomingMessage(
+                                wa_id=wa_id,
+                                message_id=message_id,
+                                timestamp=timestamp,
+                                message_body=message_body,
+                                message_type="text"
+                            ))
+                            logger.info(f"Parsed text message from {wa_id}: {message_body[:50]}")
                         
                     except Exception as e:
-                        logger.error(f"Error parsing individual message: {e}", exc_info=True)
+                        logger.debug(f"Error parsing individual message: {type(e).__name__}")
                         continue
         
     except Exception as e:
-        logger.error(f"Error parsing webhook payload: {e}", exc_info=True)
+        logger.debug(f"Error parsing webhook payload: {type(e).__name__}")
     
     return messages
 

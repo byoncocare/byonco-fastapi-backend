@@ -50,21 +50,29 @@ def create_api_router() -> APIRouter:
         Handle incoming WhatsApp webhook events from Meta.
         Processes messages and sends replies.
         No authentication required - this is called by Meta.
+        ALWAYS returns HTTP 200 with {"status": "ok"} to Meta.
         """
         # Log incoming request
         logger.info(f"POST /api/whatsapp/webhook - method={request.method}, path={request.url.path}")
         
+        # Parse JSON payload exactly once
         try:
             payload = await request.json()
+        except Exception as e:
+            # JSON parsing failed - log and return OK to Meta
+            logger.warning(f"Failed to parse webhook JSON: {type(e).__name__}")
+            return JSONResponse({"status": "ok"})
+        
+        try:
             object_type = payload.get('object', 'unknown')
             logger.info(f"Received webhook payload: object={object_type}")
             
-            # Parse incoming messages
+            # Parse incoming messages (tolerant - returns empty list if no messages)
             messages = parse_webhook_payload(payload)
             
             if not messages:
                 # No text messages, might be status update
-                logger.info("Webhook received but no text messages found (likely status update)")
+                logger.info("⚠️ WhatsApp webhook POST ignored (no messages)")
                 return JSONResponse({"status": "ok"})
             
             logger.info(f"Parsed {len(messages)} incoming message(s)")
@@ -99,14 +107,14 @@ def create_api_router() -> APIRouter:
                     logger.error(f"Error processing message {msg.message_id}: {e}", exc_info=True)
                     continue
             
-            # Always return 200 to Meta immediately
-            logger.info("Webhook processing complete - returning 200 OK to Meta")
+            # Always return 200 to Meta
+            logger.info("✅ WhatsApp webhook POST processed successfully")
             return JSONResponse({"status": "ok"})
         
         except Exception as e:
-            logger.error(f"Error handling webhook: {e}", exc_info=True)
-            # Still return 200 to prevent Meta from retrying
-            return JSONResponse({"status": "error", "message": str(e)}, status_code=200)
+            # Any other error - log and still return OK to Meta
+            logger.error(f"Error handling webhook: {type(e).__name__}", exc_info=False)
+            return JSONResponse({"status": "ok"})
     
     @router.post("/send")
     async def send_message(
