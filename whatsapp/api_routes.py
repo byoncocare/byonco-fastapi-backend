@@ -36,13 +36,33 @@ def create_api_router() -> APIRouter:
         logger.info(f"GET /api/whatsapp/webhook - method={request.method}, path={request.url.path}")
         logger.info(f"Webhook verification: mode={hub_mode}, token_present={bool(hub_verify_token)}, challenge_present={bool(hub_challenge)}")
         
-        if hub_mode == "subscribe" and hub_verify_token == config.verify_token:
-            logger.info("✅ Webhook verification successful - returning challenge")
-            return PlainTextResponse(hub_challenge or "", status_code=200)
-        else:
-            token_match = hub_verify_token == config.verify_token if hub_verify_token else False
-            logger.warning(f"❌ Webhook verification failed - status=403, mode={hub_mode}, token_match={token_match}")
-            return PlainTextResponse("Forbidden", status_code=403)
+        # If no hub.mode parameter, return 200 OK (health check)
+        if not hub_mode:
+            logger.info("Webhook GET called without hub.mode - returning OK (health check)")
+            return PlainTextResponse("ok", status_code=200)
+        
+        # If hub.mode == "subscribe", enforce token verification
+        if hub_mode == "subscribe":
+            if hub_verify_token == config.verify_token:
+                logger.info("✅ Webhook verification successful - returning challenge")
+                return PlainTextResponse(hub_challenge or "", status_code=200)
+            else:
+                token_match = hub_verify_token == config.verify_token if hub_verify_token else False
+                logger.warning(f"❌ Webhook verification failed - status=403, mode={hub_mode}, token_match={token_match}")
+                return PlainTextResponse("Forbidden", status_code=403)
+        
+        # For any other hub.mode value, return 200 OK
+        logger.info(f"Webhook GET called with hub.mode={hub_mode} (not subscribe) - returning OK")
+        return PlainTextResponse("ok", status_code=200)
+    
+    @router.head("/webhook")
+    async def verify_webhook_head(request: Request):
+        """
+        Meta webhook HEAD endpoint for health checks.
+        Returns 200 OK with no body.
+        """
+        logger.info(f"HEAD /api/whatsapp/webhook - method={request.method}, path={request.url.path}")
+        return PlainTextResponse("", status_code=200)
     
     @router.post("/webhook")
     async def handle_webhook(request: Request):
