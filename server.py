@@ -837,6 +837,17 @@ try:
 except Exception as e:
     logger.error(f"❌ Failed to include second_opinion_ai_router: {e}")
 
+# ======================================
+# WhatsApp Routes
+# ======================================
+try:
+    from whatsapp.api_routes import create_api_router as create_whatsapp_router
+    whatsapp_router = create_whatsapp_router()
+    api_router.include_router(whatsapp_router)
+    logger.info("✅ Included whatsapp_router")
+except Exception as e:
+    logger.error(f"❌ Failed to include whatsapp_router: {e}")
+
 # CORS middleware already added above after app creation
 
 
