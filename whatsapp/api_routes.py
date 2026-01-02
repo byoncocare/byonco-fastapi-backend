@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 def create_api_router() -> APIRouter:
     """Create WhatsApp API router"""
-    router = APIRouter(prefix="/whatsapp", tags=["whatsapp"])
+    router = APIRouter()
     
     @router.get("/webhook")
     async def verify_webhook(
