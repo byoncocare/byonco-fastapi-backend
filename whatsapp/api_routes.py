@@ -2,7 +2,7 @@
 WhatsApp webhook and API routes
 Handles Meta webhook verification and incoming messages
 """
-from fastapi import APIRouter, Request, HTTPException, Header, Body
+from fastapi import APIRouter, Request, HTTPException, Header, Body, Query
 from fastapi.responses import PlainTextResponse, JSONResponse
 from typing import Optional, Dict, Any
 import logging
@@ -22,9 +22,9 @@ def create_api_router() -> APIRouter:
     
     @router.get("/webhook")
     async def verify_webhook(
-        hub_mode: Optional[str] = None,
-        hub_verify_token: Optional[str] = None,
-        hub_challenge: Optional[str] = None
+        hub_mode: Optional[str] = Query(None, alias="hub.mode"),
+        hub_verify_token: Optional[str] = Query(None, alias="hub.verify_token"),
+        hub_challenge: Optional[str] = Query(None, alias="hub.challenge")
     ):
         """
         Meta webhook verification endpoint.

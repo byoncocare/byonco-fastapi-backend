@@ -843,7 +843,11 @@ except Exception as e:
 try:
     from whatsapp.api_routes import create_api_router as create_whatsapp_router
     whatsapp_router = create_whatsapp_router()
-    api_router.include_router(whatsapp_router)
+    app.include_router(
+        whatsapp_router,
+        prefix="/api/whatsapp",
+        tags=["WhatsApp"]
+    )
     logger.info("✅ Included whatsapp_router")
 except Exception as e:
     logger.error(f"❌ Failed to include whatsapp_router: {e}")
