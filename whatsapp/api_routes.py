@@ -22,6 +22,7 @@ def create_api_router() -> APIRouter:
     
     @router.get("/webhook")
     async def verify_webhook(
+        request: Request,
         hub_mode: Optional[str] = Query(None, alias="hub.mode"),
         hub_verify_token: Optional[str] = Query(None, alias="hub.verify_token"),
         hub_challenge: Optional[str] = Query(None, alias="hub.challenge")
@@ -29,14 +30,18 @@ def create_api_router() -> APIRouter:
         """
         Meta webhook verification endpoint.
         Returns hub.challenge if verification token matches.
+        No authentication required - this is called by Meta for verification.
         """
-        logger.info(f"Webhook verification request: mode={hub_mode}, token_present={bool(hub_verify_token)}")
+        # Log request details (never log secrets)
+        logger.info(f"GET /api/whatsapp/webhook - method={request.method}, path={request.url.path}")
+        logger.info(f"Webhook verification: mode={hub_mode}, token_present={bool(hub_verify_token)}, challenge_present={bool(hub_challenge)}")
         
         if hub_mode == "subscribe" and hub_verify_token == config.verify_token:
-            logger.info("✅ Webhook verification successful")
-            return PlainTextResponse(hub_challenge or "")
+            logger.info("✅ Webhook verification successful - returning challenge")
+            return PlainTextResponse(hub_challenge or "", status_code=200)
         else:
-            logger.warning(f"❌ Webhook verification failed: mode={hub_mode}, token_match={hub_verify_token == config.verify_token}")
+            token_match = hub_verify_token == config.verify_token if hub_verify_token else False
+            logger.warning(f"❌ Webhook verification failed - status=403, mode={hub_mode}, token_match={token_match}")
             return PlainTextResponse("Forbidden", status_code=403)
     
     @router.post("/webhook")
@@ -44,17 +49,33 @@ def create_api_router() -> APIRouter:
         """
         Handle incoming WhatsApp webhook events from Meta.
         Processes messages and sends replies.
+        No authentication required - this is called by Meta.
         """
+        # Log incoming request
+        logger.info(f"POST /api/whatsapp/webhook - method={request.method}, path={request.url.path}")
+        
         try:
             payload = await request.json()
-            logger.info(f"Received webhook payload: {payload.get('object', 'unknown')}")
+            object_type = payload.get('object', 'unknown')
+            logger.info(f"Received webhook payload: object={object_type}")
             
             # Parse incoming messages
             messages = parse_webhook_payload(payload)
             
+            if not messages:
+                # No text messages, might be status update
+                logger.info("Webhook received but no text messages found (likely status update)")
+                return JSONResponse({"status": "ok"})
+            
+            logger.info(f"Parsed {len(messages)} incoming message(s)")
+            
             # Process each message
             for msg in messages:
                 try:
+                    # Mask wa_id for logging (show first 6, mask last 4)
+                    masked_wa_id = f"{msg.wa_id[:6]}****{msg.wa_id[-4:]}" if len(msg.wa_id) > 10 else "****"
+                    logger.info(f"Incoming message: type={msg.message_type}, from={masked_wa_id}, message_id={msg.message_id}")
+                    
                     # Idempotency check
                     if store.is_message_processed(msg.message_id):
                         logger.info(f"Message {msg.message_id} already processed, skipping")
@@ -69,16 +90,17 @@ def create_api_router() -> APIRouter:
                     # Send reply
                     try:
                         await send_text_message(msg.wa_id, response_text)
-                        logger.info(f"Sent reply to {msg.wa_id}")
+                        logger.info(f"✅ Sent reply to {masked_wa_id}")
                     except Exception as e:
-                        logger.error(f"Failed to send reply to {msg.wa_id}: {e}", exc_info=True)
+                        logger.error(f"❌ Failed to send reply to {masked_wa_id}: {e}", exc_info=True)
                         # Continue processing other messages even if one fails
                 
                 except Exception as e:
                     logger.error(f"Error processing message {msg.message_id}: {e}", exc_info=True)
                     continue
             
-            # Always return 200 to Meta
+            # Always return 200 to Meta immediately
+            logger.info("Webhook processing complete - returning 200 OK to Meta")
             return JSONResponse({"status": "ok"})
         
         except Exception as e:
@@ -127,6 +149,19 @@ def create_api_router() -> APIRouter:
             "app_env": config.app_env,
             "api_ready": verification.get("ready", False),
             "api_error": verification.get("error") if not verification.get("ready") else None
+        })
+    
+    @router.get("/debug/webhook-status")
+    async def webhook_status():
+        """
+        Safe debug endpoint to check webhook configuration.
+        Returns only boolean flags - never exposes secrets.
+        """
+        return JSONResponse({
+            "whatsapp_access_token_present": bool(config.access_token),
+            "whatsapp_verify_token_present": bool(config.verify_token),
+            "whatsapp_phone_number_id_present": bool(config.phone_number_id),
+            "webhook_ready": bool(config.access_token and config.verify_token and config.phone_number_id)
         })
     
     return router

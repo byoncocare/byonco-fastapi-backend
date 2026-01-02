@@ -1,6 +1,7 @@
-from fastapi import FastAPI, APIRouter, File, UploadFile, HTTPException
+from fastapi import FastAPI, APIRouter, File, UploadFile, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
@@ -12,6 +13,7 @@ from typing import List, Optional, Dict, Any
 import uuid
 from datetime import datetime, timezone
 import asyncio
+import time
 
 # ======================================
 # Logging Configuration
@@ -70,6 +72,31 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Request logging middleware for webhook visibility
+class RequestLoggingMiddleware(BaseHTTPMiddleware):
+    """Log all incoming requests for debugging webhook calls"""
+    async def dispatch(self, request: Request, call_next):
+        start_time = time.time()
+        
+        # Log request
+        method = request.method
+        path = request.url.path
+        client_ip = request.client.host if request.client else "unknown"
+        
+        logger.info(f"📥 {method} {path} from {client_ip}")
+        
+        # Process request
+        response = await call_next(request)
+        
+        # Log response
+        process_time = time.time() - start_time
+        status_code = response.status_code
+        logger.info(f"📤 {method} {path} - {status_code} ({process_time:.3f}s)")
+        
+        return response
+
+app.add_middleware(RequestLoggingMiddleware)
 
 api_router = APIRouter(prefix="/api")
 
