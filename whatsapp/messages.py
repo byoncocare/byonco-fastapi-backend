@@ -118,6 +118,14 @@ async def get_ai_response(
             context_parts.append(menu_context[menu_selection])
         
         # Build enhanced query
+        user_language = user_profile.get("language", "en")
+        language_names = {
+            "en": "English", "hi": "Hindi", "mr": "Marathi", "ta": "Tamil", "te": "Telugu",
+            "bn": "Bengali", "gu": "Gujarati", "kn": "Kannada", "es": "Spanish", "de": "German",
+            "ru": "Russian", "fr": "French", "pt": "Portuguese", "ja": "Japanese", "zh": "Chinese"
+        }
+        language_name = language_names.get(user_language, "English")
+        
         enhanced_query = user_query
         if context_parts:
             context_str = "\n".join(context_parts)
@@ -126,7 +134,7 @@ async def get_ai_response(
 
 User's question: {user_query}
 
-Please provide a helpful, empathetic response focused on cancer/oncology care. If the user's preferred language is not English, provide the response in their preferred language."""
+CRITICAL: You MUST respond in {language_name} language. Provide a helpful, empathetic response focused on cancer/oncology care in {language_name}."""
         
         # Call OpenAI
         result = await ai_service.chat(message=enhanced_query, file_content=None)
