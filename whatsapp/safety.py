@@ -34,7 +34,38 @@ CANCER_KEYWORDS = [
     # Common cancer types
     'breast cancer', 'lung cancer', 'prostate cancer', 'colon cancer',
     'liver cancer', 'pancreatic cancer', 'ovarian cancer', 'cervical cancer',
-    'brain tumor', 'bone cancer', 'skin cancer'
+    'brain tumor', 'bone cancer', 'skin cancer',
+    # Pathology / IHC / Molecular markers
+    'ki67', 'ki-67',
+    'her2', 'her-2',
+    'er', 'pr', 'er/pr',
+    'pdl1', 'pd-l1',
+    'egfr', 'alk', 'ros1',
+    'braf', 'ntrk',
+    'brca', 'brca1', 'brca2',
+    'microsatellite', 'msi',
+    'tmb',
+    # Tumor grading / staging systems
+    'tnm', 'grade', 'grading',
+    'gleason',
+    'figo',
+    'ann arbor',
+    # Tumor markers (blood tests)
+    'cea',
+    'ca-125', 'ca125',
+    'ca19-9', 'ca19',
+    'afp',
+    'psa',
+    'beta hcg', 'β-hcg',
+    # Report terminology (oncology-specific)
+    'ihc',
+    'immunohistochemistry',
+    'histopath', 'histopathology',
+    'cytology',
+    'biomarker',
+    'mutation',
+    'amplification',
+    'expression'
 ]
 
 # Emergency keywords (high priority - bypass AI)
