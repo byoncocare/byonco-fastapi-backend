@@ -18,11 +18,13 @@ class WhatsAppStore:
     def __init__(self):
         # users[wa_id] = {
         #   "consented": bool,
-        #   "onboarding_step": str,  # "none", "name", "age", "city", "complete"
+        #   "onboarding_step": str,  # "none", "name", "age", "city", "country", "language", "complete"
         #   "profile": {
         #     "name": str,
         #     "age": Optional[str],
-        #     "city": Optional[str]
+        #     "city": Optional[str],
+        #     "country": Optional[str],
+        #     "language": Optional[str]  # "en", "hi", "mr", "ta", "te", "bn", "gu", "kn", "es", "de", "ru", "fr", "pt", "ja", "zh"
         #   },
         #   "created_at": datetime,
         #   "updated_at": datetime
@@ -45,7 +47,9 @@ class WhatsAppStore:
             "profile": {
                 "name": None,
                 "age": None,
-                "city": None
+                "city": None,
+                "country": None,
+                "language": None
             },
             "created_at": now,
             "updated_at": now
@@ -72,7 +76,7 @@ class WhatsAppStore:
         )
     
     def set_profile_field(self, wa_id: str, field: str, value: str) -> Dict:
-        """Set a profile field (name, age, city)"""
+        """Set a profile field (name, age, city, country, language)"""
         user = self.get_user(wa_id) or self.create_user(wa_id)
         user["profile"][field] = value
         user["updated_at"] = datetime.now(timezone.utc)
@@ -104,4 +108,3 @@ class WhatsAppStore:
 # Global store instance (in-memory)
 # In production, replace with database-backed store
 store = WhatsAppStore()
-

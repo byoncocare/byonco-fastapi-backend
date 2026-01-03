@@ -11,7 +11,7 @@ from .config import config
 from .parser import parse_webhook_payload
 from .store import store
 from .client import send_text_message, verify_connection
-from .messages import get_response_for_user
+from .messages import get_response_for_user_async
 
 logger = logging.getLogger(__name__)
 
@@ -112,8 +112,8 @@ def create_api_router() -> APIRouter:
                     # Mark as processed
                     store.mark_message_processed(msg.message_id)
                     
-                    # Get user state and determine response
-                    response_text = get_response_for_user(msg.wa_id, msg.message_body)
+                    # Get user state and determine response (async with OpenAI integration)
+                    response_text = await get_response_for_user_async(msg.wa_id, msg.message_body)
                     
                     # Send reply
                     try:
