@@ -26,6 +26,11 @@ class WhatsAppStore:
         #     "country": Optional[str],
         #     "language": Optional[str]  # "en", "hi", "mr", "ta", "te", "bn", "gu", "kn", "es", "de", "ru", "fr", "pt", "ja", "zh"
         #   },
+        #   "usage": {
+        #     "text_prompts_today": int,
+        #     "file_attachments_today": int,
+        #     "last_reset_date": str  # YYYY-MM-DD format
+        #   },
         #   "created_at": datetime,
         #   "updated_at": datetime
         # }
@@ -41,6 +46,7 @@ class WhatsAppStore:
     def create_user(self, wa_id: str) -> Dict:
         """Create new user with default state"""
         now = datetime.now(timezone.utc)
+        today = now.strftime("%Y-%m-%d")
         user = {
             "consented": False,
             "onboarding_step": "none",
@@ -50,6 +56,11 @@ class WhatsAppStore:
                 "city": None,
                 "country": None,
                 "language": None
+            },
+            "usage": {
+                "text_prompts_today": 0,
+                "file_attachments_today": 0,
+                "last_reset_date": today
             },
             "created_at": now,
             "updated_at": now
@@ -90,11 +101,75 @@ class WhatsAppStore:
         """Mark onboarding as complete"""
         return self.update_user(wa_id, onboarding_step="complete")
     
+    def _reset_daily_usage_if_needed(self, wa_id: str):
+        """Reset daily usage counters if it's a new day"""
+        if wa_id not in self.users:
+            return
+        
+        user = self.users[wa_id]
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        last_reset = user.get("usage", {}).get("last_reset_date", today)
+        
+        if last_reset != today:
+            # New day - reset counters
+            if "usage" not in user:
+                user["usage"] = {}
+            user["usage"]["text_prompts_today"] = 0
+            user["usage"]["file_attachments_today"] = 0
+            user["usage"]["last_reset_date"] = today
+            logger.info(f"Daily usage reset for {wa_id[:6]}****")
+    
+    def get_usage(self, wa_id: str) -> Dict[str, int]:
+        """Get current daily usage for user"""
+        self._reset_daily_usage_if_needed(wa_id)
+        user = self.get_user(wa_id)
+        if not user:
+            return {"text_prompts_today": 0, "file_attachments_today": 0}
+        
+        usage = user.get("usage", {})
+        return {
+            "text_prompts_today": usage.get("text_prompts_today", 0),
+            "file_attachments_today": usage.get("file_attachments_today", 0)
+        }
+    
+    def increment_text_prompt(self, wa_id: str) -> int:
+        """Increment text prompt counter and return new count"""
+        self._reset_daily_usage_if_needed(wa_id)
+        user = self.get_user(wa_id) or self.create_user(wa_id)
+        
+        if "usage" not in user:
+            user["usage"] = {
+                "text_prompts_today": 0,
+                "file_attachments_today": 0,
+                "last_reset_date": datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            }
+        
+        user["usage"]["text_prompts_today"] = user["usage"].get("text_prompts_today", 0) + 1
+        user["updated_at"] = datetime.now(timezone.utc)
+        return user["usage"]["text_prompts_today"]
+    
+    def increment_file_attachment(self, wa_id: str) -> int:
+        """Increment file attachment counter and return new count"""
+        self._reset_daily_usage_if_needed(wa_id)
+        user = self.get_user(wa_id) or self.create_user(wa_id)
+        
+        if "usage" not in user:
+            user["usage"] = {
+                "text_prompts_today": 0,
+                "file_attachments_today": 0,
+                "last_reset_date": datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            }
+        
+        user["usage"]["file_attachments_today"] = user["usage"].get("file_attachments_today", 0) + 1
+        user["updated_at"] = datetime.now(timezone.utc)
+        return user["usage"]["file_attachments_today"]
+    
     def reset_user(self, wa_id: str):
         """Reset user data (for RESET/DELETE commands)"""
         if wa_id in self.users:
             # Keep only minimal data: wa_id and language preference
             language = self.users[wa_id].get("profile", {}).get("language")
+            today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
             self.users[wa_id] = {
                 "consented": False,
                 "onboarding_step": "none",
@@ -104,6 +179,11 @@ class WhatsAppStore:
                     "city": None,
                     "country": None,
                     "language": language  # Preserve language preference
+                },
+                "usage": {
+                    "text_prompts_today": 0,
+                    "file_attachments_today": 0,
+                    "last_reset_date": today
                 },
                 "created_at": datetime.now(timezone.utc),
                 "updated_at": datetime.now(timezone.utc)

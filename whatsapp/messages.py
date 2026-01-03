@@ -64,6 +64,33 @@ MAIN_MENU = """How can I help you right now?
 
 Reply with 1/2/3/4 or just type your question."""
 
+# Usage limits
+MAX_TEXT_PROMPTS_PER_DAY = 3
+MAX_FILE_ATTACHMENTS_PER_DAY = 1
+PREMIUM_LINK = "https://www.byoncocare.com/second-opinion"
+
+LIMIT_EXCEEDED_TEXT = f"""You've reached your daily limit for free messages.
+
+Free tier limits:
+• {MAX_TEXT_PROMPTS_PER_DAY} text prompts per day
+• {MAX_FILE_ATTACHMENTS_PER_DAY} file attachment per day
+
+For unlimited access and premium features, upgrade to ByOnco Premium:
+{PREMIUM_LINK}
+
+Your limits reset daily. You can continue tomorrow or upgrade now for immediate access."""
+
+LIMIT_EXCEEDED_FILE = f"""You've reached your daily limit for file attachments.
+
+Free tier limits:
+• {MAX_TEXT_PROMPTS_PER_DAY} text prompts per day
+• {MAX_FILE_ATTACHMENTS_PER_DAY} file attachment per day
+
+For unlimited access and premium features, upgrade to ByOnco Premium:
+{PREMIUM_LINK}
+
+Your limits reset daily. You can continue tomorrow or upgrade now for immediate access."""
+
 
 def normalize_language(lang_input: str) -> Optional[str]:
     """Normalize language input to language code"""
