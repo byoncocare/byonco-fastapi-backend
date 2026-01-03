@@ -384,6 +384,11 @@ async def get_response_for_user_async(wa_id: str, message_body: str) -> str:
     elif onboarding_step == "complete":
         # User is fully onboarded - use OpenAI for responses with safety checks
         
+        # USAGE LIMIT CHECK: Check daily limits before processing
+        usage = store.get_usage(wa_id)
+        if usage["text_prompts_today"] >= MAX_TEXT_PROMPTS_PER_DAY:
+            return LIMIT_EXCEEDED_TEXT
+        
         # SAFETY CHECK 1: Emergency detection (bypasses AI, returns urgent guidance)
         action, safety_response = classify_message(message_body)
         if action == "emergency":
@@ -413,6 +418,9 @@ async def get_response_for_user_async(wa_id: str, message_body: str) -> str:
         else:
             # Direct question - use as-is (already passed safety check)
             prompt = message_body
+        
+        # Increment usage counter (only if we're actually processing)
+        store.increment_text_prompt(wa_id)
         
         # Get AI response (only called if message passed all safety checks)
         try:
