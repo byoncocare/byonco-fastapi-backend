@@ -35,9 +35,9 @@ NAME_PROMPT = "Thank you. What name should I use for you? (You can share your na
 
 AGE_PROMPT = "What's your age? (This helps me provide age-appropriate information.)"
 
-CITY_PROMPT = "Which city are you in? (This helps me find relevant hospitals and resources.)"
-
 COUNTRY_PROMPT = "Which country are you in? (e.g., India, USA, UK)"
+
+CITY_PROMPT = "Which city are you in? (This helps me find relevant hospitals and resources.)"
 
 LANGUAGE_PROMPT = """What language would you prefer for our conversation?
 
@@ -320,28 +320,28 @@ async def get_response_for_user_async(wa_id: str, message_body: str) -> str:
         age = message_body.strip()
         if age:
             store.set_profile_field(wa_id, "age", age)
-            store.advance_onboarding(wa_id, "city")
-            return CITY_PROMPT
-        else:
-            return "Please share your age."
-    
-    elif onboarding_step == "city":
-        city = message_body.strip()
-        if city:
-            store.set_profile_field(wa_id, "city", city)
             store.advance_onboarding(wa_id, "country")
             return COUNTRY_PROMPT
         else:
-            return "Please share your city."
+            return "Please share your age."
     
     elif onboarding_step == "country":
         country = message_body.strip()
         if country:
             store.set_profile_field(wa_id, "country", country)
+            store.advance_onboarding(wa_id, "city")
+            return CITY_PROMPT
+        else:
+            return "Please share your country."
+    
+    elif onboarding_step == "city":
+        city = message_body.strip()
+        if city:
+            store.set_profile_field(wa_id, "city", city)
             store.advance_onboarding(wa_id, "language")
             return LANGUAGE_PROMPT
         else:
-            return "Please share your country."
+            return "Please share your city."
     
     elif onboarding_step == "language":
         lang_input = message_body.strip()
