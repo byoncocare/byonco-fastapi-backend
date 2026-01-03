@@ -199,34 +199,34 @@ def get_response_for_user(wa_id: str, message_body: str) -> str:
             return "Please share your name or initials."
     
     elif onboarding_step == "age":
-        # Save age and ask for city
+        # Save age and ask for country
         age = message_body.strip()
         if age:
             store.set_profile_field(wa_id, "age", age)
-            store.advance_onboarding(wa_id, "city")
-            return CITY_PROMPT
-        else:
-            return "Please share your age."
-    
-    elif onboarding_step == "city":
-        # Save city and ask for country
-        city = message_body.strip()
-        if city:
-            store.set_profile_field(wa_id, "city", city)
             store.advance_onboarding(wa_id, "country")
             return COUNTRY_PROMPT
         else:
-            return "Please share your city."
+            return "Please share your age."
     
     elif onboarding_step == "country":
-        # Save country and ask for language
+        # Save country and ask for city
         country = message_body.strip()
         if country:
             store.set_profile_field(wa_id, "country", country)
+            store.advance_onboarding(wa_id, "city")
+            return CITY_PROMPT
+        else:
+            return "Please share your country."
+    
+    elif onboarding_step == "city":
+        # Save city and ask for language
+        city = message_body.strip()
+        if city:
+            store.set_profile_field(wa_id, "city", city)
             store.advance_onboarding(wa_id, "language")
             return LANGUAGE_PROMPT
         else:
-            return "Please share your country."
+            return "Please share your city."
     
     elif onboarding_step == "language":
         # Save language and complete onboarding
