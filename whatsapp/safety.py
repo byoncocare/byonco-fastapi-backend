@@ -226,7 +226,7 @@ def classify_message(text: str) -> Tuple[str, Optional[str]]:
     
     if not is_cancer_related(text):
         logger.info(f"Non-cancer message detected: {text[:50]}...")
-        return ('non_cancer', "I'm ByOnco's Cancer Support Assistant. I can only help with questions related to cancer care, oncology, treatment, reports, and related topics.\n\nFor other questions, please consult appropriate resources.\n\nHow can I help you with cancer care today?")
+        return ('non_cancer', "I'm specialized in oncology (cancer) care and can only provide information related to cancer diagnosis, treatment, and management. For a comprehensive second opinion from an actual oncologist, please consider our premium Second Opinion service where board-certified specialists review your case: https://www.byoncocare.com/second-opinion. If you have any questions about cancer or treatment options, feel free to ask!")
     
     return ('cancer_ok', None)
 
