@@ -869,7 +869,7 @@ except Exception as e:
 # ======================================
 try:
     from whatsapp.api_routes import create_api_router as create_whatsapp_router
-    whatsapp_router = create_whatsapp_router(db)  # Pass db for MongoDB store
+    whatsapp_router = create_whatsapp_router()
     app.include_router(
         whatsapp_router,
         prefix="/api/whatsapp",
@@ -896,14 +896,6 @@ async def startup_log_razorpay():
         logger.info("✅ Razorpay environment variables configured")
     else:
         logger.warning("⚠️ Razorpay environment variables missing - payment features will not work")
-
-# ======================================
-# Health Check Endpoint
-# ======================================
-@app.get("/health")
-async def health_check():
-    """Simple health check endpoint"""
-    return {"status": "ok"}
 
 # ======================================
 # Shutdown Handler
