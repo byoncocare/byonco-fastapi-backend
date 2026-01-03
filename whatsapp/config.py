@@ -25,12 +25,17 @@ class WhatsAppConfig:
         self.graph_version = env("WHATSAPP_GRAPH_VERSION", "v21.0")
         self.app_env = env("APP_ENV", "local")
         self.admin_api_key = env("ADMIN_API_KEY", "")
+        self.meta_app_secret = env("META_APP_SECRET", "")
+        self.debug_key = env("DEBUG_KEY", "")
+        self.waba_id = env("WHATSAPP_WABA_ID", "")
         
         # Validate required fields
         if not self.access_token:
             logger.warning("⚠️ WHATSAPP_ACCESS_TOKEN not set - outbound messages will fail")
         if not self.phone_number_id:
             logger.warning("⚠️ WHATSAPP_PHONE_NUMBER_ID not set - outbound messages will fail")
+        if not self.meta_app_secret:
+            logger.warning("⚠️ META_APP_SECRET not set - webhook signature verification disabled")
     
     def is_production(self) -> bool:
         """Check if running in production environment"""
