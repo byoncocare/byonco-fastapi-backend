@@ -90,6 +90,32 @@ class WhatsAppStore:
         """Mark onboarding as complete"""
         return self.update_user(wa_id, onboarding_step="complete")
     
+    def reset_user(self, wa_id: str):
+        """Reset user data (for RESET/DELETE commands)"""
+        if wa_id in self.users:
+            # Keep only minimal data: wa_id and language preference
+            language = self.users[wa_id].get("profile", {}).get("language")
+            self.users[wa_id] = {
+                "consented": False,
+                "onboarding_step": "none",
+                "profile": {
+                    "name": None,
+                    "age": None,
+                    "city": None,
+                    "country": None,
+                    "language": language  # Preserve language preference
+                },
+                "created_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc)
+            }
+            logger.info(f"User data reset for {wa_id[:6]}**** (language preserved)")
+    
+    def delete_user(self, wa_id: str):
+        """Delete all user data (for DELETE MY DATA command)"""
+        if wa_id in self.users:
+            del self.users[wa_id]
+            logger.info(f"User data deleted for {wa_id[:6]}****")
+    
     def is_message_processed(self, message_id: str) -> bool:
         """Check if message was already processed (idempotency)"""
         return message_id in self.processed_message_ids

@@ -1,6 +1,6 @@
 """
-Message templates and conversation flow logic for ByOnco Cancer Copilot
-Integrated with OpenAI for doctor-like responses (similar to August AI)
+Message templates and conversation flow logic for ByOnco Cancer Support Assistant
+Integrated with OpenAI for information and guidance (helps prepare questions for oncologist)
 All messages are original ByOnco branding
 """
 from typing import Dict, Optional, Tuple
@@ -29,7 +29,7 @@ LANGUAGE_CODES = {
 }
 
 # Message templates (English base - will be translated based on user language)
-DISCLAIMER_MESSAGE = """Hi — I'm ByOnco's Cancer Support Assistant. I can help you understand reports, treatment terms, and general care information. I'm not a doctor and I can't help with emergencies. If you agree to continue, reply: AGREE"""
+DISCLAIMER_MESSAGE = """Hi — I'm ByOnco's Cancer Support Assistant. I can help you understand reports, treatment terms, and general care information. I can help you prepare questions for your oncologist. I'm not a doctor and I can't help with emergencies. If you agree to continue, reply: AGREE"""
 
 NAME_PROMPT = "Thank you. What name should I use for you? (You can share your name or initials.)"
 
@@ -136,11 +136,16 @@ User's question: {user_query}
 
 CRITICAL: You MUST respond in {language_name} language. Provide a helpful, empathetic response focused on cancer/oncology care in {language_name}."""
         
-        # Call OpenAI
+        # Call OpenAI with token limit
         result = await ai_service.chat(message=enhanced_query, file_content=None)
         ai_response = result.get("response", "I apologize, but I'm having trouble processing your request. Please try again.")
         
-        # Note: For now, OpenAI will respond in English. 
+        # Enforce max response length (prevent overly long responses)
+        MAX_RESPONSE_LENGTH = 2000  # characters
+        if len(ai_response) > MAX_RESPONSE_LENGTH:
+            ai_response = ai_response[:MAX_RESPONSE_LENGTH] + "\n\n[Response truncated for length. Please ask more specific questions if you need more details.]"
+        
+        # Note: OpenAI will respond in the requested language. 
         # In production, you can add translation service or use OpenAI's multilingual capabilities
         # For languages other than English, you could:
         # 1. Add language instruction to system prompt
@@ -260,12 +265,33 @@ def get_response_for_user(wa_id: str, message_body: str) -> str:
 
 async def get_response_for_user_async(wa_id: str, message_body: str) -> str:
     """
-    Async version that integrates OpenAI for doctor-like responses.
+    Async version that integrates OpenAI for cancer support assistance.
     This is called after onboarding is complete and user asks questions.
+    Includes safety guardrails: emergency detection, risky content filtering, cancer-only gating.
     
     Returns:
         Response message to send to user (AI-generated or menu)
     """
+    from .safety import classify_message
+    from .rate_limiter import rate_limiter
+    
+    # Handle RESET and DELETE commands
+    message_upper = message_body.upper().strip()
+    if message_upper in ["RESET", "RESTART", "START OVER"]:
+        store.reset_user(wa_id)
+        rate_limiter.reset(wa_id)
+        return "Your data has been reset. Let's start fresh!\n\n" + DISCLAIMER_MESSAGE
+    
+    if message_upper in ["DELETE MY DATA", "DELETE DATA", "DELETE", "REMOVE MY DATA"]:
+        store.delete_user(wa_id)
+        rate_limiter.reset(wa_id)
+        return "Your data has been deleted. If you'd like to start again, send 'Hi'."
+    
+    # Rate limiting check
+    is_allowed, rate_limit_msg = rate_limiter.is_allowed(wa_id)
+    if not is_allowed:
+        return rate_limit_msg
+    
     user = store.get_user(wa_id)
     
     # User doesn't exist or hasn't consented
@@ -329,7 +355,18 @@ async def get_response_for_user_async(wa_id: str, message_body: str) -> str:
             return f"I didn't recognize that language. {LANGUAGE_PROMPT}"
     
     elif onboarding_step == "complete":
-        # User is fully onboarded - use OpenAI for responses
+        # User is fully onboarded - use OpenAI for responses with safety checks
+        
+        # SAFETY CHECK 1: Emergency detection (bypasses AI, returns urgent guidance)
+        action, safety_response = classify_message(message_body)
+        if action == "emergency":
+            return safety_response
+        if action == "risky":
+            return safety_response
+        if action == "non_cancer":
+            return safety_response
+        # action == "cancer_ok" - proceed to OpenAI
+        
         message_upper = message_body.upper().strip()
         menu_selection = None
         
@@ -347,10 +384,10 @@ async def get_response_for_user_async(wa_id: str, message_body: str) -> str:
             menu_selection = "4"
             prompt = "I need help finding hospitals and estimating treatment costs. "
         else:
-            # Direct question - use as-is
+            # Direct question - use as-is (already passed safety check)
             prompt = message_body
         
-        # Get AI response
+        # Get AI response (only called if message passed all safety checks)
         try:
             ai_response = await get_ai_response(prompt, profile, menu_selection)
             return ai_response

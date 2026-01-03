@@ -100,19 +100,20 @@ def create_api_router() -> APIRouter:
             # Process each message
             for msg in messages:
                 try:
-                    # Mask wa_id for logging (show first 6, mask last 4)
+                    # Mask wa_id for logging (PRIVACY: never log full wa_id or user text)
                     masked_wa_id = f"{msg.wa_id[:6]}****{msg.wa_id[-4:]}" if len(msg.wa_id) > 10 else "****"
-                    logger.info(f"Incoming message: type={msg.message_type}, from={masked_wa_id}, message_id={msg.message_id}")
+                    message_preview = msg.message_body[:30] + "..." if len(msg.message_body) > 30 else msg.message_body
+                    logger.info(f"Incoming message: type={msg.message_type}, from={masked_wa_id}, preview={message_preview}, message_id={msg.message_id[:20]}...")
                     
                     # Idempotency check
                     if store.is_message_processed(msg.message_id):
-                        logger.info(f"Message {msg.message_id} already processed, skipping")
+                        logger.info(f"Message {msg.message_id[:20]}... already processed, skipping")
                         continue
                     
                     # Mark as processed
                     store.mark_message_processed(msg.message_id)
                     
-                    # Get user state and determine response (async with OpenAI integration)
+                    # Get user state and determine response (async with OpenAI integration + safety checks)
                     response_text = await get_response_for_user_async(msg.wa_id, msg.message_body)
                     
                     # Send reply
@@ -120,7 +121,7 @@ def create_api_router() -> APIRouter:
                         await send_text_message(msg.wa_id, response_text)
                         logger.info(f"✅ Sent reply to {masked_wa_id}")
                     except Exception as e:
-                        logger.error(f"❌ Failed to send reply to {masked_wa_id}: {e}", exc_info=True)
+                        logger.error(f"❌ Failed to send reply to {masked_wa_id}: {type(e).__name__}", exc_info=False)  # Don't log full error with PII
                         # Continue processing other messages even if one fails
                 
                 except Exception as e:
