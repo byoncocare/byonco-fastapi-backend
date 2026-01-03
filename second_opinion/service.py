@@ -86,12 +86,13 @@ Please analyze the medical report and answer the user's question. If the report 
             messages.append({"role": "user", "content": user_message})
             
             # Call OpenAI Chat Completions API with token limit
-            from whatsapp.rate_limiter import MAX_TOKENS_PER_RESPONSE
+            # Use constant directly to avoid circular import
+            MAX_TOKENS = 1000  # Enforce cost control
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",  # Using mini for cost efficiency, can upgrade to gpt-4o if needed
                 messages=messages,
                 temperature=0.7,
-                max_tokens=MAX_TOKENS_PER_RESPONSE,  # Enforce cost control
+                max_tokens=MAX_TOKENS,  # Enforce cost control
             )
             
             ai_response = response.choices[0].message.content
