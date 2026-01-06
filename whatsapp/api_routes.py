@@ -122,7 +122,7 @@ def create_api_router() -> APIRouter:
                         logger.info(f"✅ Sent reply to {masked_wa_id}")
                         
                         # If this was an acknowledgment, send the actual AI response in a follow-up
-                        from .messages import ACKNOWLEDGMENT_MESSAGE
+                        from .messages import ACKNOWLEDGMENT_MESSAGE, get_ai_response
                         if response_text == ACKNOWLEDGMENT_MESSAGE:
                             # Get the actual AI response
                             user = store.get_user(msg.wa_id)
@@ -149,7 +149,6 @@ def create_api_router() -> APIRouter:
                                 
                                 # Get AI response
                                 try:
-                                    from .messages import get_ai_response
                                     ai_response = await get_ai_response(prompt, profile, menu_selection)
                                     await send_text_message(msg.wa_id, ai_response)
                                     logger.info(f"✅ Sent AI response to {masked_wa_id}")
