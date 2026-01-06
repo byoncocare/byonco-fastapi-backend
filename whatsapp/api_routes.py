@@ -120,6 +120,42 @@ def create_api_router() -> APIRouter:
                     try:
                         await send_text_message(msg.wa_id, response_text)
                         logger.info(f"✅ Sent reply to {masked_wa_id}")
+                        
+                        # If this was an acknowledgment, send the actual AI response in a follow-up
+                        from .messages import ACKNOWLEDGMENT_MESSAGE
+                        if response_text == ACKNOWLEDGMENT_MESSAGE:
+                            # Get the actual AI response
+                            user = store.get_user(msg.wa_id)
+                            if user and user.get("onboarding_step") == "complete":
+                                profile = user.get("profile", {})
+                                message_upper = msg.message_body.upper().strip()
+                                menu_selection = None
+                                
+                                # Determine prompt based on menu selection or direct question
+                                if message_upper in ["1", "REPORTS"]:
+                                    menu_selection = "1"
+                                    prompt = "I need help understanding medical reports and test results. "
+                                elif message_upper in ["2", "SIDE EFFECTS", "SYMPTOMS"]:
+                                    menu_selection = "2"
+                                    prompt = "I need information about treatment side effects and symptoms. "
+                                elif message_upper in ["3", "NUTRITION"]:
+                                    menu_selection = "3"
+                                    prompt = "I need cancer-friendly nutrition and diet guidance. "
+                                elif message_upper in ["4", "HOSPITAL", "COSTS"]:
+                                    menu_selection = "4"
+                                    prompt = "I need help finding hospitals and estimating treatment costs. "
+                                else:
+                                    prompt = msg.message_body
+                                
+                                # Get AI response
+                                try:
+                                    from .messages import get_ai_response
+                                    ai_response = await get_ai_response(prompt, profile, menu_selection)
+                                    await send_text_message(msg.wa_id, ai_response)
+                                    logger.info(f"✅ Sent AI response to {masked_wa_id}")
+                                except Exception as e:
+                                    logger.error(f"❌ Failed to get/send AI response to {masked_wa_id}: {type(e).__name__}", exc_info=True)
+                                    await send_text_message(msg.wa_id, "I apologize, but I encountered an error processing your question. Please try rephrasing it or contact support.")
                     except Exception as e:
                         logger.error(f"❌ Failed to send reply to {masked_wa_id}: {type(e).__name__}", exc_info=False)  # Don't log full error with PII
                         # Continue processing other messages even if one fails

@@ -65,7 +65,7 @@ MAIN_MENU = """How can I help you right now?
 Reply with 1/2/3/4 or just type your question."""
 
 # Usage limits
-MAX_TEXT_PROMPTS_PER_DAY = 3
+MAX_TEXT_PROMPTS_PER_DAY = 2
 MAX_FILE_ATTACHMENTS_PER_DAY = 1
 PREMIUM_LINK = "https://www.byoncocare.com/second-opinion"
 
@@ -79,6 +79,9 @@ For unlimited access and premium features, upgrade to ByOnco Premium:
 {PREMIUM_LINK}
 
 Your limits reset daily. You can continue tomorrow or upgrade now for immediate access."""
+
+# Immediate acknowledgment message when user asks a question
+ACKNOWLEDGMENT_MESSAGE = "Thank you for your question. I'm reviewing your query and preparing a comprehensive response. This may take 1-2 minutes. Please bear with me."
 
 LIMIT_EXCEEDED_FILE = f"""You've reached your daily limit for file attachments.
 
