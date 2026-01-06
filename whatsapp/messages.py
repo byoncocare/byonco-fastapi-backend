@@ -425,13 +425,9 @@ async def get_response_for_user_async(wa_id: str, message_body: str) -> str:
         # Increment usage counter (only if we're actually processing)
         store.increment_text_prompt(wa_id)
         
-        # Get AI response (only called if message passed all safety checks)
-        try:
-            ai_response = await get_ai_response(prompt, profile, menu_selection)
-            return ai_response
-        except Exception as e:
-            logger.error(f"Error in get_ai_response: {e}", exc_info=True)
-            return f"I understand you said: {message_body}\n\n{MAIN_MENU}"
+        # Return acknowledgment message immediately
+        # The actual AI response will be sent in a follow-up message by api_routes.py
+        return ACKNOWLEDGMENT_MESSAGE
     
     else:
         return MAIN_MENU
