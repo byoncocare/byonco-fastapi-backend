@@ -17,13 +17,19 @@ class IncomingMessage:
         message_id: str,
         timestamp: str,
         message_body: str,
-        message_type: str = "text"
+        message_type: str = "text",
+        media_id: Optional[str] = None,
+        mime_type: Optional[str] = None,
+        caption: Optional[str] = None
     ):
         self.wa_id = wa_id
         self.message_id = message_id
         self.timestamp = timestamp
         self.message_body = message_body
-        self.message_type = message_type
+        self.message_type = message_type  # "text", "image", "document", "video"
+        self.media_id = media_id  # For image/document/video
+        self.mime_type = mime_type  # e.g., "image/jpeg", "application/pdf"
+        self.caption = caption  # Optional caption for media messages
     
     def __repr__(self):
         return f"IncomingMessage(wa_id={self.wa_id}, message_id={self.message_id}, type={self.message_type})"
@@ -116,12 +122,7 @@ def parse_webhook_payload(payload: Dict[str, Any]) -> List[IncomingMessage]:
                         continue
                     
                     try:
-                        # Only process text messages
                         msg_type = msg.get("type", "")
-                        if msg_type != "text":
-                            logger.debug(f"Ignoring non-text message type: {msg_type}")
-                            continue
-                        
                         wa_id = msg.get("from")
                         if not wa_id:
                             logger.debug("Message missing 'from' field")
@@ -134,21 +135,93 @@ def parse_webhook_payload(payload: Dict[str, Any]) -> List[IncomingMessage]:
                         
                         timestamp = msg.get("timestamp", "")
                         
-                        # Extract text message
-                        text_obj = msg.get("text")
-                        if not text_obj or not isinstance(text_obj, dict):
-                            continue
+                        # Handle text messages
+                        if msg_type == "text":
+                            text_obj = msg.get("text")
+                            if not text_obj or not isinstance(text_obj, dict):
+                                continue
+                            
+                            message_body = text_obj.get("body", "").strip()
+                            if message_body:
+                                messages.append(IncomingMessage(
+                                    wa_id=wa_id,
+                                    message_id=message_id,
+                                    timestamp=timestamp,
+                                    message_body=message_body,
+                                    message_type="text"
+                                ))
+                                logger.info(f"Parsed text message from {wa_id}: {message_body[:50]}")
                         
-                        message_body = text_obj.get("body", "").strip()
-                        if message_body:
+                        # Handle image messages
+                        elif msg_type == "image":
+                            image_obj = msg.get("image")
+                            if not image_obj or not isinstance(image_obj, dict):
+                                continue
+                            
+                            media_id = image_obj.get("id")
+                            mime_type = image_obj.get("mime_type", "image/jpeg")
+                            caption = msg.get("caption", "").strip() if msg.get("caption") else None
+                            
+                            if media_id:
+                                messages.append(IncomingMessage(
+                                    wa_id=wa_id,
+                                    message_id=message_id,
+                                    timestamp=timestamp,
+                                    message_body=caption or "[Image attachment]",
+                                    message_type="image",
+                                    media_id=media_id,
+                                    mime_type=mime_type,
+                                    caption=caption
+                                ))
+                                logger.info(f"Parsed image message from {wa_id}, media_id={media_id[:20]}...")
+                        
+                        # Handle document messages (PDFs)
+                        elif msg_type == "document":
+                            doc_obj = msg.get("document")
+                            if not doc_obj or not isinstance(doc_obj, dict):
+                                continue
+                            
+                            media_id = doc_obj.get("id")
+                            mime_type = doc_obj.get("mime_type", "application/pdf")
+                            filename = doc_obj.get("filename", "document.pdf")
+                            caption = msg.get("caption", "").strip() if msg.get("caption") else None
+                            
+                            # Only process PDFs
+                            if media_id and mime_type == "application/pdf":
+                                messages.append(IncomingMessage(
+                                    wa_id=wa_id,
+                                    message_id=message_id,
+                                    timestamp=timestamp,
+                                    message_body=caption or f"[PDF attachment: {filename}]",
+                                    message_type="document",
+                                    media_id=media_id,
+                                    mime_type=mime_type,
+                                    caption=caption
+                                ))
+                                logger.info(f"Parsed PDF document from {wa_id}, media_id={media_id[:20]}..., filename={filename}")
+                            else:
+                                logger.debug(f"Ignoring non-PDF document: {mime_type}")
+                        
+                        # Handle video messages (polite rejection)
+                        elif msg_type == "video":
+                            video_obj = msg.get("video")
+                            if not video_obj or not isinstance(video_obj, dict):
+                                continue
+                            
+                            caption = msg.get("caption", "").strip() if msg.get("caption") else None
+                            # Create a text message response instead of processing video
                             messages.append(IncomingMessage(
                                 wa_id=wa_id,
                                 message_id=message_id,
                                 timestamp=timestamp,
-                                message_body=message_body,
-                                message_type="text"
+                                message_body="[VIDEO_REJECTION]",
+                                message_type="video",
+                                caption=caption
                             ))
-                            logger.info(f"Parsed text message from {wa_id}: {message_body[:50]}")
+                            logger.info(f"Parsed video message from {wa_id} (will be rejected)")
+                        
+                        else:
+                            logger.debug(f"Ignoring unsupported message type: {msg_type}")
                         
                     except Exception as e:
                         logger.debug(f"Error parsing individual message: {type(e).__name__}")

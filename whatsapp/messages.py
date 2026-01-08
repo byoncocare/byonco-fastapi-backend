@@ -104,7 +104,8 @@ def normalize_language(lang_input: str) -> Optional[str]:
 async def get_ai_response(
     user_query: str,
     user_profile: Dict,
-    menu_selection: Optional[str] = None
+    menu_selection: Optional[str] = None,
+    file_content: Optional[str] = None
 ) -> str:
     """
     Get AI response from OpenAI using Second Opinion service
@@ -114,6 +115,7 @@ async def get_ai_response(
         user_query: User's question/message
         user_profile: User profile dict with name, age, city, country, language
         menu_selection: Optional menu selection (1-4)
+        file_content: Optional extracted text from uploaded medical report
     
     Returns:
         AI-generated response in user's preferred language
@@ -167,7 +169,7 @@ User's question: {user_query}
 CRITICAL: You MUST respond in {language_name} language. Provide a helpful, empathetic response focused on cancer/oncology care in {language_name}."""
         
         # Call OpenAI with token limit
-        result = await ai_service.chat(message=enhanced_query, file_content=None)
+        result = await ai_service.chat(message=enhanced_query, file_content=file_content)
         ai_response = result.get("response", "I apologize, but I'm having trouble processing your request. Please try again.")
         
         # Enforce max response length (prevent overly long responses)
@@ -291,6 +293,101 @@ def get_response_for_user(wa_id: str, message_body: str) -> str:
     else:
         # Fallback - should not happen
         return MAIN_MENU
+
+
+async def process_attachment_async(
+    wa_id: str,
+    media_id: str,
+    mime_type: str,
+    message_type: str,
+    caption: Optional[str] = None
+) -> Tuple[str, Optional[str], Optional[dict]]:
+    """
+    Process attachment (image or PDF) and extract text.
+    
+    Args:
+        wa_id: WhatsApp ID of user
+        media_id: Media ID from WhatsApp
+        mime_type: MIME type of the media
+        message_type: "image" or "document"
+        caption: Optional caption from user
+        
+    Returns:
+        Tuple of (response_message, extracted_text, metadata)
+        extracted_text is None if extraction failed
+        metadata includes extraction details and token usage
+    """
+    from .media_handler import download_media
+    from .extractor import extract_text_from_media
+    
+    # Check if user is onboarded
+    user = store.get_user(wa_id)
+    if not user or user.get("onboarding_step") != "complete":
+        return "Please complete onboarding first by sending 'Hi' and following the setup process.", None, None
+    
+    # Check file attachment limit
+    usage = store.get_usage(wa_id)
+    if usage["file_attachments_today"] >= MAX_FILE_ATTACHMENTS_PER_DAY:
+        return LIMIT_EXCEEDED_FILE, None, None
+    
+    # Download media
+    logger.info(f"Downloading media: media_id={media_id[:20]}..., mime_type={mime_type}")
+    file_bytes, downloaded_mime_type, file_size = await download_media(media_id)
+    
+    if not file_bytes:
+        logger.error(f"Failed to download media: media_id={media_id[:20]}...")
+        return "I couldn't download your file. Please try uploading again or check your internet connection.", None, None
+    
+    logger.info(f"Downloaded media: size={file_size} bytes, mime_type={downloaded_mime_type}")
+    
+    # Extract text
+    logger.info(f"Extracting text from {message_type}...")
+    extracted_text, success, extraction_metadata = extract_text_from_media(file_bytes, downloaded_mime_type)
+    
+    if not success or not extracted_text:
+        logger.warning(f"Text extraction failed for media_id={media_id[:20]}...")
+        return (
+            "I couldn't read the text from your file. Please make sure:\n"
+            "• The image is clear and well-lit\n"
+            "• The PDF is not corrupted\n"
+            "• Text is visible and not too blurry\n\n"
+            "Try uploading a clearer photo or PDF.",
+            None,
+            None
+        )
+    
+    logger.info(f"Successfully extracted {len(extracted_text)} characters from {message_type}")
+    
+    # Increment usage counter
+    store.increment_file_attachment(wa_id)
+    
+    # Build prompt for AI
+    user_query = caption or "Please analyze this medical report and provide: (a) report summary, (b) flagged values if obvious, (c) recommended questions for oncologist, (d) next-step guidance."
+    
+    # Get AI response with extracted text
+    profile = user.get("profile", {})
+    try:
+        ai_response = await get_ai_response(user_query, profile, menu_selection="1", file_content=extracted_text)
+        
+        # Log token usage (if available from AI service)
+        metadata = {
+            "media_type": message_type,
+            "file_size": file_size,
+            "extraction_method": extraction_metadata.get("extraction_method"),
+            "pages_processed": extraction_metadata.get("pages_processed", 0),
+            "extracted_text_length": len(extracted_text)
+        }
+        
+        return ai_response, extracted_text, metadata
+        
+    except Exception as e:
+        logger.error(f"Error getting AI response for attachment: {e}", exc_info=True)
+        return (
+            "I successfully extracted text from your file, but encountered an error processing it. "
+            "Please try again or contact support.",
+            extracted_text,
+            None
+        )
 
 
 async def get_response_for_user_async(wa_id: str, message_body: str) -> str:

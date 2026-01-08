@@ -113,6 +113,54 @@ def create_api_router() -> APIRouter:
                     # Mark as processed
                     store.mark_message_processed(msg.message_id)
                     
+                    # Handle video messages (polite rejection)
+                    if msg.message_type == "video":
+                        response_text = "I can only process text messages, images, and PDF documents. Videos are not supported. Please send a photo or PDF of your medical report instead."
+                        try:
+                            await send_text_message(msg.wa_id, response_text)
+                            logger.info(f"✅ Sent video rejection message to {masked_wa_id}")
+                        except Exception as e:
+                            logger.error(f"❌ Failed to send video rejection to {masked_wa_id}: {type(e).__name__}", exc_info=False)
+                        continue
+                    
+                    # Handle image and document attachments
+                    if msg.message_type in ["image", "document"]:
+                        from .messages import process_attachment_async
+                        
+                        logger.info(f"Processing {msg.message_type} attachment: media_id={msg.media_id[:20] if msg.media_id else 'None'}..., mime_type={msg.mime_type}")
+                        
+                        try:
+                            response_text, extracted_text, metadata = await process_attachment_async(
+                                msg.wa_id,
+                                msg.media_id,
+                                msg.mime_type or "",
+                                msg.message_type,
+                                msg.caption
+                            )
+                            
+                            # Log extraction details
+                            if metadata:
+                                logger.info(
+                                    f"Attachment processed: type={msg.message_type}, "
+                                    f"size={metadata.get('file_size', 0)} bytes, "
+                                    f"method={metadata.get('extraction_method')}, "
+                                    f"pages={metadata.get('pages_processed', 0)}, "
+                                    f"text_length={metadata.get('extracted_text_length', 0)}"
+                                )
+                            
+                            # Send response
+                            await send_text_message(msg.wa_id, response_text)
+                            logger.info(f"✅ Sent attachment response to {masked_wa_id}")
+                            
+                        except Exception as e:
+                            logger.error(f"❌ Failed to process attachment for {masked_wa_id}: {type(e).__name__}", exc_info=True)
+                            await send_text_message(
+                                msg.wa_id,
+                                "I encountered an error processing your file. Please try uploading again or contact support."
+                            )
+                        continue
+                    
+                    # Handle text messages (existing flow)
                     # Get user state and determine response (async with OpenAI integration + safety checks)
                     response_text = await get_response_for_user_async(msg.wa_id, msg.message_body)
                     
