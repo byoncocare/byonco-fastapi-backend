@@ -5,9 +5,13 @@ All messages are original ByOnco branding
 """
 from typing import Dict, Optional, Tuple
 from .store import store
+from datetime import datetime, timezone, timedelta
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Inactivity timeout: 10 minutes
+INACTIVITY_TIMEOUT_MINUTES = 10
 
 # Supported languages mapping
 LANGUAGE_CODES = {
@@ -94,11 +98,91 @@ For unlimited access and premium features, upgrade to ByOnco Premium:
 
 Your limits reset daily. You can continue tomorrow or upgrade now for immediate access."""
 
+# Positive sentiment responses
+POSITIVE_RESPONSES = [
+    "You're very welcome! I'm glad I could help. Feel free to reach out anytime if you have more questions.",
+    "It's my pleasure to assist you. I'm here whenever you need support or have questions about your cancer care journey.",
+    "Thank you for your kind words. I'm always here to help you navigate your cancer care journey. Don't hesitate to reach out if you need anything.",
+    "You're most welcome! I'm here to support you. If you have any other questions or concerns, feel free to ask anytime."
+]
+
+# Inactivity messages
+INACTIVITY_CHECK_MESSAGE = "Hi! I noticed you haven't responded in a while. Is there anything else I can help you with today?"
+GOODBYE_MESSAGE = "Thank you for using ByOnco. I'm always here to help whenever you need support. Take care, and feel free to reach out anytime. Goodbye!"
+
 
 def normalize_language(lang_input: str) -> Optional[str]:
     """Normalize language input to language code"""
     lang_lower = lang_input.lower().strip()
     return LANGUAGE_CODES.get(lang_lower)
+
+
+def is_positive_sentiment(message: str) -> bool:
+    """
+    Detect if message expresses positive sentiment (thanks, gratitude, appreciation).
+    
+    Args:
+        message: User's message text
+        
+    Returns:
+        True if message appears to be positive/thankful
+    """
+    message_lower = message.lower().strip()
+    
+    # Keywords indicating positive sentiment
+    positive_keywords = [
+        "thank", "thanks", "thank you", "thankyou",
+        "grateful", "gratitude", "appreciate", "appreciation",
+        "helpful", "great help", "very helpful",
+        "wonderful", "amazing", "excellent", "perfect",
+        "good job", "well done", "nice", "lovely",
+        "bless you", "god bless", "appreciated",
+        "dhanyavad", "shukriya", "abhari",  # Hindi/Marathi thanks
+        "nandri", "dhanyavaad", "kritagnya"  # Tamil/Telugu thanks
+    ]
+    
+    # Check if message contains positive keywords
+    for keyword in positive_keywords:
+        if keyword in message_lower:
+            return True
+    
+    # Check for short positive messages (likely just thanks)
+    if len(message_lower.split()) <= 5:
+        if any(word in message_lower for word in ["ok", "okay", "fine", "good", "great", "nice"]):
+            return True
+    
+    return False
+
+
+def check_inactivity(wa_id: str) -> Optional[str]:
+    """
+    Check if user has been inactive for more than the timeout period.
+    
+    Args:
+        wa_id: WhatsApp ID of user
+        
+    Returns:
+        Inactivity message if timeout exceeded, None otherwise
+    """
+    last_activity = store.get_last_activity(wa_id)
+    if not last_activity:
+        return None
+    
+    now = datetime.now(timezone.utc)
+    time_diff = now - last_activity
+    
+    # Check if inactive for more than timeout
+    if time_diff > timedelta(minutes=INACTIVITY_TIMEOUT_MINUTES):
+        # Mark as inactive and return goodbye message
+        logger.info(f"User {wa_id[:6]}**** inactive for {time_diff.total_seconds() / 60:.1f} minutes")
+        return GOODBYE_MESSAGE
+    
+    # Check if approaching timeout (8-10 minutes) - send check message
+    if timedelta(minutes=8) <= time_diff <= timedelta(minutes=INACTIVITY_TIMEOUT_MINUTES):
+        logger.info(f"User {wa_id[:6]}**** approaching inactivity timeout")
+        return INACTIVITY_CHECK_MESSAGE
+    
+    return None
 
 
 async def get_ai_response(
@@ -320,6 +404,17 @@ async def process_attachment_async(
     from .media_handler import download_media
     from .extractor import extract_text_from_media
     
+    # Check for inactivity timeout BEFORE updating activity
+    inactivity_msg = check_inactivity(wa_id)
+    if inactivity_msg:
+        if inactivity_msg == GOODBYE_MESSAGE:
+            return inactivity_msg, None, None
+        store.update_last_activity(wa_id)
+        return inactivity_msg, None, None
+    
+    # Update last activity timestamp (user is active)
+    store.update_last_activity(wa_id)
+    
     # Check if user is onboarded
     user = store.get_user(wa_id)
     if not user or user.get("onboarding_step") != "complete":
@@ -402,11 +497,25 @@ async def get_response_for_user_async(wa_id: str, message_body: str) -> str:
     from .safety import classify_message
     from .rate_limiter import rate_limiter
     
+    # Check for inactivity timeout BEFORE updating activity (to detect if they were inactive)
+    inactivity_msg = check_inactivity(wa_id)
+    if inactivity_msg:
+        # If goodbye message, don't update activity (conversation is ending)
+        if inactivity_msg == GOODBYE_MESSAGE:
+            return inactivity_msg
+        # Otherwise, it's a check message - update activity and return it
+        store.update_last_activity(wa_id)
+        return inactivity_msg
+    
+    # Update last activity timestamp (user is active)
+    store.update_last_activity(wa_id)
+    
     # Handle RESET and DELETE commands
     message_upper = message_body.upper().strip()
     if message_upper in ["RESET", "RESTART", "START OVER"]:
         store.reset_user(wa_id)
         rate_limiter.reset(wa_id)
+        store.update_last_activity(wa_id)
         return "Your data has been reset. Let's start fresh!\n\n" + DISCLAIMER_MESSAGE
     
     if message_upper in ["DELETE MY DATA", "DELETE DATA", "DELETE", "REMOVE MY DATA"]:
@@ -483,6 +592,13 @@ async def get_response_for_user_async(wa_id: str, message_body: str) -> str:
     
     elif onboarding_step == "complete":
         # User is fully onboarded - use OpenAI for responses with safety checks
+        
+        # Check for positive sentiment (thanks, gratitude) - respond warmly
+        if is_positive_sentiment(message_body):
+            import random
+            response = random.choice(POSITIVE_RESPONSES)
+            logger.info(f"Detected positive sentiment from {wa_id[:6]}****, responding warmly")
+            return response
         
         # USAGE LIMIT CHECK: Check daily limits before processing
         usage = store.get_usage(wa_id)

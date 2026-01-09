@@ -31,6 +31,7 @@ class WhatsAppStore:
         #     "file_attachments_today": int,
         #     "last_reset_date": str  # YYYY-MM-DD format
         #   },
+        #   "last_activity": datetime,  # Last message timestamp for inactivity tracking
         #   "created_at": datetime,
         #   "updated_at": datetime
         # }
@@ -62,6 +63,7 @@ class WhatsAppStore:
                 "file_attachments_today": 0,
                 "last_reset_date": today
             },
+            "last_activity": now,
             "created_at": now,
             "updated_at": now
         }
@@ -77,6 +79,21 @@ class WhatsAppStore:
         self.users[wa_id].update(updates)
         self.users[wa_id]["updated_at"] = datetime.now(timezone.utc)
         return self.users[wa_id]
+    
+    def update_last_activity(self, wa_id: str):
+        """Update last activity timestamp for user"""
+        if wa_id not in self.users:
+            self.create_user(wa_id)
+        
+        self.users[wa_id]["last_activity"] = datetime.now(timezone.utc)
+        self.users[wa_id]["updated_at"] = datetime.now(timezone.utc)
+    
+    def get_last_activity(self, wa_id: str) -> Optional[datetime]:
+        """Get last activity timestamp for user"""
+        user = self.get_user(wa_id)
+        if not user:
+            return None
+        return user.get("last_activity")
     
     def mark_consented(self, wa_id: str) -> Dict:
         """Mark user as consented and start onboarding"""
@@ -185,6 +202,7 @@ class WhatsAppStore:
                     "file_attachments_today": 0,
                     "last_reset_date": today
                 },
+                "last_activity": datetime.now(timezone.utc),
                 "created_at": datetime.now(timezone.utc),
                 "updated_at": datetime.now(timezone.utc)
             }
