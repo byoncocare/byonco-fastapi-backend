@@ -606,7 +606,14 @@ async def get_response_for_user_async(wa_id: str, message_body: str) -> str:
             return LIMIT_EXCEEDED_TEXT
         
         # SAFETY CHECK 1: Emergency detection (bypasses AI, returns urgent guidance)
-        action, safety_response = classify_message(message_body)
+        action, safety_response, intent_dict = classify_message(message_body)
+        
+        # Log detected intents for analytics
+        if intent_dict:
+            active_intents = [k for k, v in intent_dict.items() if v]
+            if active_intents:
+                logger.info(f"Detected intents for {wa_id[:6]}****: {', '.join(active_intents)}")
+        
         if action == "emergency":
             return safety_response
         if action == "risky":
@@ -614,6 +621,7 @@ async def get_response_for_user_async(wa_id: str, message_body: str) -> str:
         if action == "non_cancer":
             return safety_response
         # action == "cancer_ok" - proceed to OpenAI
+        # intent_dict can be used for response customization in the future
         
         message_upper = message_body.upper().strip()
         menu_selection = None
