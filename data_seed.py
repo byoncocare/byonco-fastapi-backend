@@ -114,7 +114,13 @@ HOSPITALS = {
             "languages": ["English", "Hindi", "Marathi"],
             "rating": 4.8,
             "reviews_count": 2500,
-            "image_url": "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=800"
+            "image_url": "https://doctorlistingingestionpr.blob.core.windows.net/doctorprofilepic/1671606334081_HospitalProfileImage_Capture.PNG",
+            "imageUrl": "https://doctorlistingingestionpr.blob.core.windows.net/doctorprofilepic/1671606334081_HospitalProfileImage_Capture.PNG",
+            "detailsUrl": "https://tmc.gov.in/abha",
+            "appointmentUrl": "https://tmc.gov.in/abha",
+            "phone": "+91 (22)2740 5085",
+            "contactEmail": "mail@actrec.gov.in",
+            "inquiryUrl": None
         },
         {
             "id": "kdah-mumbai",
@@ -137,7 +143,13 @@ HOSPITALS = {
             "languages": ["English", "Hindi", "Marathi"],
             "rating": 4.7,
             "reviews_count": 1800,
-            "image_url": "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=800"
+            "image_url": "https://static.wixstatic.com/media/0ccbd3_88737cce70b04e1babcbd803265ba277~mv2.jpeg/v1/fill/w_560,h_400,al_c,q_80,usm_0.66_1.00_0.01,enc_auto/0ccbd3_88737cce70b04e1babcbd803265ba277~mv2.jpeg",
+            "imageUrl": "https://static.wixstatic.com/media/0ccbd3_88737cce70b04e1babcbd803265ba277~mv2.jpeg/v1/fill/w_560,h_400,al_c,q_80,usm_0.66_1.00_0.01,enc_auto/0ccbd3_88737cce70b04e1babcbd803265ba277~mv2.jpeg",
+            "detailsUrl": "https://www.kokilabenhospital.com/contacts/enquires.html",
+            "appointmentUrl": "https://online.kokilabenhospital.com/online-consultation",
+            "phone": "+91 (22) 4269 6969",
+            "contactEmail": None,
+            "inquiryUrl": "https://www.kokilabenhospital.com/contacts/enquires.html"
         },
         {
             "id": "jaslok-mumbai",
@@ -160,7 +172,13 @@ HOSPITALS = {
             "languages": ["English", "Hindi", "Marathi", "Gujarati"],
             "rating": 4.6,
             "reviews_count": 1500,
-            "image_url": "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=800"
+            "image_url": "https://lh3.googleusercontent.com/gps-cs-s/AG0ilSwI7suZ4PI5MU7X_Cry0t25GEj8wmqth-eXkB5Zzsw38yXUpXjR7r5FhRS2SI-bKxwylyDISrE7XnfgEkcfx6yutRsV7YeEZ2OrQDMczcjbQLoW-zphTHaBYQc3f7B8w1_C6jU=s1360-w1360-h1020",
+            "imageUrl": "https://lh3.googleusercontent.com/gps-cs-s/AG0ilSwI7suZ4PI5MU7X_Cry0t25GEj8wmqth-eXkB5Zzsw38yXUpXjR7r5FhRS2SI-bKxwylyDISrE7XnfgEkcfx6yutRsV7YeEZ2OrQDMczcjbQLoW-zphTHaBYQc3f7B8w1_C6jU=s1360-w1360-h1020",
+            "detailsUrl": "https://jaslokconnect1.jaslokhospital.net:4434/Appointment/",
+            "appointmentUrl": "https://jaslokconnect1.jaslokhospital.net:4434/Appointment/",
+            "phone": "99201 66688",
+            "contactEmail": "info@jaslokhospital.net, appointments@jaslokhospital.net",
+            "inquiryUrl": None
         },
         {
             "id": "fortis-mulund-mumbai",

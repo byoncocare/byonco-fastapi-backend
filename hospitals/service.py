@@ -45,15 +45,21 @@ class HospitalsService:
                     "name": hospital.get("name", ""),
                     "city": hospital.get("city", city_name),
                     "address": hospital.get("address", f"{hospital.get('name', '')}, {city_name}, India"),
-                    "contact": hospital.get("contact", "+91-XX-XXXX-XXXX"),
-                    "email": hospital.get("email", f"info@{hospital.get('name', '').lower().replace(' ', '')}.com"),
+                    "contact": hospital.get("contact", hospital.get("phone", "+91-XX-XXXX-XXXX")),
+                    "phone": hospital.get("phone", hospital.get("contact", "+91-XX-XXXX-XXXX")),
+                    "email": hospital.get("email", hospital.get("contactEmail")),
+                    "contactEmail": hospital.get("contactEmail"),
                     "rating": hospital.get("rating", 4.5),
                     "total_reviews": hospital.get("reviews_count", 0),
                     "specialties": hospital.get("specializations", []),
                     "cancer_types": hospital.get("specializations", []),  # Using specializations as cancer types
                     "facilities": hospital.get("treatments", []),
-                    "image_url": hospital.get("image_url", "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=800"),
-                    "established_year": hospital.get("established_year", 2000)
+                    "image_url": hospital.get("imageUrl") or hospital.get("image_url", "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=800"),
+                    "imageUrl": hospital.get("imageUrl") or hospital.get("image_url", "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=800"),
+                    "established_year": hospital.get("established_year", 2000),
+                    "detailsUrl": hospital.get("detailsUrl"),
+                    "appointmentUrl": hospital.get("appointmentUrl"),
+                    "inquiryUrl": hospital.get("inquiryUrl")
                 }
                 
                 # Filter by cancer_type if specified
