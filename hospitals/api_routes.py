@@ -19,7 +19,7 @@ def create_api_router():
     router = APIRouter(prefix="/api", tags=["hospitals"])
     service = HospitalsService()
     
-    @router.get("/hospitals", response_model=List[Hospital])
+    @router.get("/hospitals")
     async def get_all_hospitals(
         city: Optional[str] = Query(None, description="Filter by city"),
         cancer_type: Optional[str] = Query(None, description="Filter by cancer type")
@@ -27,10 +27,16 @@ def create_api_router():
         """Get all hospitals with optional filtering"""
         try:
             hospitals = service.get_all_hospitals(city=city, cancer_type=cancer_type)
+            # Ensure email field exists for all hospitals (required by frontend)
+            for h in hospitals:
+                if not h.get("email") and h.get("contactEmail"):
+                    h["email"] = h["contactEmail"].split(",")[0].strip() if h["contactEmail"] else ""
+                elif not h.get("email"):
+                    h["email"] = f"info@{h.get('name', '').lower().replace(' ', '')}.com"
             return hospitals
         except Exception as e:
-            logger.error(f"Error fetching hospitals: {str(e)}")
-            raise HTTPException(status_code=500, detail="Failed to fetch hospitals")
+            logger.error(f"Error fetching hospitals: {str(e)}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Failed to fetch hospitals: {str(e)}")
     
     @router.get("/hospitals/{hospital_id}", response_model=Hospital)
     async def get_hospital(hospital_id: str):
