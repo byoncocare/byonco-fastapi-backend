@@ -68,11 +68,11 @@ class CostCalculationRequest(BaseModel):
     accreditation: List[str] = []
     
     # Patient & Disease
-    age_group: str
-    cancer_category: str
+    age_group: Optional[str] = 'adult'
+    cancer_category: Optional[str] = 'common'
     cancer_type: str
     stage: str
-    intent: str
+    intent: Optional[str] = 'curative'
     
     # Treatment - Surgery
     include_surgery: bool = False

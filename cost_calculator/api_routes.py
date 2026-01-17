@@ -10,59 +10,93 @@ import os
 
 logger = logging.getLogger(__name__)
 
+# Import fallback data
+try:
+    from seed_data import (
+        COUNTRIES_DATA, INSURERS_DATA, CANCER_TYPES_DATA,
+        STAGES_DATA, HOSPITAL_TIERS_DATA
+    )
+except ImportError:
+    # If seed_data is not available, define empty fallbacks
+    COUNTRIES_DATA = []
+    INSURERS_DATA = {}
+    CANCER_TYPES_DATA = []
+    STAGES_DATA = []
+    HOSPITAL_TIERS_DATA = []
+
 def create_api_router(db):
     router = APIRouter(prefix="/api/cost-calculator")
     calculator_service = CostCalculatorService(db)
     
     @router.get("/countries", response_model=List[Country])
     async def get_countries():
-        """Get all available countries"""
+        """Get all available countries - returns mock data if database is empty"""
         try:
             countries = await db.countries.find().to_list(100)
+            # If database is empty, return fallback mock data
+            if not countries:
+                logger.info("Database empty for countries, returning fallback mock data")
+                return COUNTRIES_DATA
             return countries
         except Exception as e:
-            logger.error(f"Error fetching countries: {str(e)}")
-            raise HTTPException(status_code=500, detail="Failed to fetch countries")
+            logger.warning(f"Error fetching countries from DB: {str(e)}, returning fallback mock data")
+            return COUNTRIES_DATA
     
     @router.get("/insurers/{country_id}", response_model=List[Insurer])
     async def get_insurers_by_country(country_id: str):
-        """Get all insurers for a specific country"""
+        """Get all insurers for a specific country - returns mock data if database is empty"""
         try:
             insurers = await db.insurers.find({'country_id': country_id}).to_list(100)
+            # If database is empty, return fallback mock data
+            if not insurers:
+                logger.info(f"Database empty for insurers ({country_id}), returning fallback mock data")
+                return INSURERS_DATA.get(country_id, [])
             return insurers
         except Exception as e:
-            logger.error(f"Error fetching insurers: {str(e)}")
-            raise HTTPException(status_code=500, detail="Failed to fetch insurers")
+            logger.warning(f"Error fetching insurers from DB: {str(e)}, returning fallback mock data")
+            return INSURERS_DATA.get(country_id, [])
     
     @router.get("/cancer-types", response_model=List[CancerType])
     async def get_cancer_types():
-        """Get all cancer types"""
+        """Get all cancer types - returns mock data if database is empty"""
         try:
             cancer_types = await db.cancer_types.find().to_list(100)
+            # If database is empty, return fallback mock data
+            if not cancer_types:
+                logger.info("Database empty for cancer types, returning fallback mock data")
+                return CANCER_TYPES_DATA
             return cancer_types
         except Exception as e:
-            logger.error(f"Error fetching cancer types: {str(e)}")
-            raise HTTPException(status_code=500, detail="Failed to fetch cancer types")
+            logger.warning(f"Error fetching cancer types from DB: {str(e)}, returning fallback mock data")
+            return CANCER_TYPES_DATA
     
     @router.get("/stages", response_model=List[Stage])
     async def get_stages():
-        """Get all cancer stages"""
+        """Get all cancer stages - returns mock data if database is empty"""
         try:
             stages = await db.stages.find().to_list(100)
+            # If database is empty, return fallback mock data
+            if not stages:
+                logger.info("Database empty for stages, returning fallback mock data")
+                return STAGES_DATA
             return stages
         except Exception as e:
-            logger.error(f"Error fetching stages: {str(e)}")
-            raise HTTPException(status_code=500, detail="Failed to fetch stages")
+            logger.warning(f"Error fetching stages from DB: {str(e)}, returning fallback mock data")
+            return STAGES_DATA
     
     @router.get("/hospital-tiers", response_model=List[HospitalTier])
     async def get_hospital_tiers():
-        """Get all hospital tiers"""
+        """Get all hospital tiers - returns mock data if database is empty"""
         try:
             tiers = await db.hospital_tiers.find().to_list(100)
+            # If database is empty, return fallback mock data
+            if not tiers:
+                logger.info("Database empty for hospital tiers, returning fallback mock data")
+                return HOSPITAL_TIERS_DATA
             return tiers
         except Exception as e:
-            logger.error(f"Error fetching hospital tiers: {str(e)}")
-            raise HTTPException(status_code=500, detail="Failed to fetch hospital tiers")
+            logger.warning(f"Error fetching hospital tiers from DB: {str(e)}, returning fallback mock data")
+            return HOSPITAL_TIERS_DATA
     
     @router.post("/calculate-cost", response_model=CostCalculationResponse)
     async def calculate_cost(request: CostCalculationRequest):

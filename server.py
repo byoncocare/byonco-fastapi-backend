@@ -2,6 +2,7 @@ from fastapi import FastAPI, APIRouter, File, UploadFile, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
@@ -97,6 +98,52 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         return response
 
 app.add_middleware(RequestLoggingMiddleware)
+
+# Security headers middleware
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Add security headers to all responses"""
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        
+        # Security headers
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+        
+        # HSTS (only for HTTPS)
+        if request.url.scheme == "https":
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+        
+        # Content-Security-Policy
+        # Allow necessary resources: Razorpay, Google Fonts, backend API
+        # Note: 'unsafe-eval' required for React development, can be removed in production
+        # Script hashes for inline JSON-LD structured data
+        csp = (
+            "default-src 'self'; "
+            "script-src 'self' "
+            "'sha256-gzSgGwu748dK5ashw/ouyNkimFYnTG4Y3zr8AsWQ/QA=' "
+            "'sha256-mBNSTKPnzvk9cM2sqIUQObp+LubqOOud3KB8WNkhoYY=' "
+            "'sha256-e37hfl8e7rIG+nlQBG7of5RfMYiPrybSFGn+FPNXgXI=' "
+            "'unsafe-eval' "
+            "https://checkout.razorpay.com https://fonts.googleapis.com; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "font-src 'self' https://fonts.gstatic.com data:; "
+            "img-src 'self' data: https: blob:; "
+            "connect-src 'self' https://byonco-fastapi-backend.onrender.com https://api.razorpay.com "
+            "https://checkout.razorpay.com https://fonts.googleapis.com https://fonts.gstatic.com; "
+            "frame-src 'self' https://checkout.razorpay.com; "
+            "object-src 'none'; "
+            "base-uri 'self'; "
+            "form-action 'self'; "
+            "frame-ancestors 'none'; "
+            "upgrade-insecure-requests;"
+        )
+        response.headers["Content-Security-Policy"] = csp
+        
+        return response
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 api_router = APIRouter(prefix="/api")
 

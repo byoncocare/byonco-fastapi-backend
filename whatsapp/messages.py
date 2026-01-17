@@ -131,14 +131,26 @@ def is_positive_sentiment(message: str) -> bool:
     
     # Keywords indicating positive sentiment
     positive_keywords = [
+        # English
         "thank", "thanks", "thank you", "thankyou",
         "grateful", "gratitude", "appreciate", "appreciation",
         "helpful", "great help", "very helpful",
         "wonderful", "amazing", "excellent", "perfect",
         "good job", "well done", "nice", "lovely",
         "bless you", "god bless", "appreciated",
-        "dhanyavad", "shukriya", "abhari",  # Hindi/Marathi thanks
-        "nandri", "dhanyavaad", "kritagnya"  # Tamil/Telugu thanks
+        # Hindi/Marathi (Roman)
+        "dhanyavad", "dhanyavaad", "shukriya", "abhari", "abhari ahe",
+        "aabhari", "aabhaar", "dhanyawaad", "shukriyaa",
+        # Hindi (Devanagari)
+        "धन्यवाद", "शुक्रिया", "अभारी", "आभार",
+        # Marathi (Devanagari)
+        "धन्यवाद", "आभारी आहे", "खूप आभार",
+        # Tamil/Telugu thanks
+        "nandri", "kritagnya",
+        # Gujarati thanks
+        "aabhar",
+        # Bengali thanks
+        "dhonyobad"
     ]
     
     # Check if message contains positive keywords

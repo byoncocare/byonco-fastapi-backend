@@ -11,9 +11,18 @@ from .models import (
 from .service import AuthService
 from typing import Optional
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 security = HTTPBearer()
+
+# Import email service for password reset emails
+try:
+    from email_service import EmailService
+    email_service = EmailService()
+except ImportError:
+    logger.warning("EmailService not found. Password reset emails will not be sent.")
+    email_service = None
 
 
 def create_api_router(db):
@@ -170,9 +179,30 @@ def create_api_router(db):
         try:
             token = await auth_service.create_password_reset_token(request.email)
             if token:
-                # In production, send email with reset link
-                # For now, just return success (don't expose token in production)
+                # Send email with reset link
+                frontend_url = os.environ.get("FRONTEND_URL", "https://www.byoncocare.com")
+                
+                if email_service:
+                    try:
+                        email_sent = await email_service.send_password_reset_email(
+                            email=request.email,
+                            reset_token=token,
+                            frontend_url=frontend_url
+                        )
+                        if email_sent:
+                            logger.info(f"Password reset email sent to: {request.email}")
+                        else:
+                            logger.warning(f"Password reset email failed to send to: {request.email}")
+                    except Exception as email_error:
+                        # Don't fail the request if email fails - token is still created
+                        logger.error(f"Error sending password reset email: {str(email_error)}")
+                else:
+                    logger.warning(f"Email service not available. Password reset token created but email not sent to: {request.email}")
+                
+                # Always return success message (don't reveal if email exists)
                 return {"message": "If the email exists, a password reset link has been sent"}
+            
+            # If token is None, user doesn't exist, but still return success (security best practice)
             return {"message": "If the email exists, a password reset link has been sent"}
         except Exception as e:
             logger.error(f"Password reset request error: {str(e)}")
