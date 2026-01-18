@@ -88,8 +88,11 @@ def create_api_router(db):
             )
     
     @router.post("/verify")
-    async def verify_payment(verification: PaymentVerification):
-        """Verify RazorPay payment"""
+    async def verify_payment(
+        verification: PaymentVerification,
+        user_id: Optional[str] = Depends(get_current_user_id)
+    ):
+        """Verify RazorPay payment and create subscription"""
         try:
             # Verify signature
             is_valid = payment_service.verify_payment(
@@ -104,6 +107,24 @@ def create_api_router(db):
                     detail="Invalid payment signature"
                 )
             
+            # Get payment record to extract user email
+            payment = await payment_service.get_payment_by_order_id(verification.razorpay_order_id)
+            user_email = None
+            
+            if user_id:
+                # Get user email from user_id
+                user = await auth_service.get_user_by_id(user_id)
+                if user:
+                    user_email = user.get("email")
+            elif payment and payment.get("user_id"):
+                # Fallback: get user email from payment record
+                user = await auth_service.get_user_by_id(payment["user_id"])
+                if user:
+                    user_email = user.get("email")
+            
+            if not user_email:
+                logger.warning(f"Could not determine user email for payment {verification.razorpay_order_id}")
+            
             # Update payment status
             await payment_service.update_payment_status(
                 order_id=verification.razorpay_order_id,
@@ -111,16 +132,33 @@ def create_api_router(db):
                 razorpay_payment_id=verification.razorpay_payment_id
             )
             
+            # Create subscription if user email is available
+            subscription = None
+            if user_email:
+                # Determine plan based on amount (₹99 = byonco-pro, else hospital-saas)
+                plan_id = "byonco-pro" if verification.amount == 99 else "hospital-saas"
+                duration_days = 7 if plan_id == "byonco-pro" else 30
+                
+                subscription = await payment_service.create_subscription(
+                    user_email=user_email,
+                    plan_id=plan_id,
+                    payment_id=verification.razorpay_payment_id,
+                    order_id=verification.razorpay_order_id,
+                    duration_days=duration_days
+                )
+                logger.info(f"Subscription created for {user_email} after payment verification")
+            
             return {
                 "success": True,
                 "message": "Payment verified successfully",
                 "order_id": verification.razorpay_order_id,
-                "payment_id": verification.razorpay_payment_id
+                "payment_id": verification.razorpay_payment_id,
+                "subscription": subscription
             }
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Error verifying payment: {str(e)}")
+            logger.error(f"Error verifying payment: {str(e)}", exc_info=True)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to verify payment"
@@ -144,6 +182,48 @@ def create_api_router(db):
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to get payment status"
+            )
+    
+    @router.get("/subscription/status")
+    async def get_subscription_status(
+        user_id: Optional[str] = Depends(get_current_user_id)
+    ):
+        """Get active subscription status for current user"""
+        try:
+            if not user_id:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Authentication required"
+                )
+            
+            # Get user email
+            user = await auth_service.get_user_by_id(user_id)
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="User not found"
+                )
+            
+            user_email = user.get("email")
+            subscription = await payment_service.get_active_subscription(user_email)
+            
+            if subscription:
+                return {
+                    "has_subscription": True,
+                    "subscription": subscription
+                }
+            else:
+                return {
+                    "has_subscription": False,
+                    "subscription": None
+                }
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error getting subscription status: {str(e)}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to get subscription status"
             )
     
     # Vayu-specific Razorpay endpoints (matches frontend expectations)

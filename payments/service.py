@@ -75,6 +75,7 @@ class PaymentService:
     def __init__(self, db):
         self.db = db
         self.payments_collection = db.payments
+        self.subscriptions_collection = db.subscriptions
     
     def create_order(self, amount: float, currency: str = "INR", receipt: Optional[str] = None, notes: Optional[dict] = None) -> Dict[str, Any]:
         """Create RazorPay order"""
@@ -159,3 +160,61 @@ class PaymentService:
         if payment:
             return dict(payment)
         return None
+    
+    async def create_subscription(self, user_email: str, plan_id: str, payment_id: str, order_id: str, duration_days: int = 7) -> Dict[str, Any]:
+        """Create subscription for user after successful payment"""
+        from datetime import timedelta
+        
+        subscribed_at = datetime.now(timezone.utc)
+        expires_at = subscribed_at + timedelta(days=duration_days)
+        
+        subscription_doc = {
+            "id": secrets.token_urlsafe(16),
+            "user_email": user_email.lower(),
+            "plan_id": plan_id,
+            "plan_name": "ByOnco PRO" if plan_id == "byonco-pro" else "Hospital SaaS",
+            "payment_id": payment_id,
+            "order_id": order_id,
+            "subscribed_at": subscribed_at.isoformat(),
+            "expires_at": expires_at.isoformat(),
+            "active": True,
+            "created_at": subscribed_at.isoformat(),
+            "updated_at": subscribed_at.isoformat()
+        }
+        
+        # Deactivate any existing subscriptions for this user
+        await self.subscriptions_collection.update_many(
+            {"user_email": user_email.lower(), "active": True},
+            {"$set": {"active": False, "updated_at": subscribed_at.isoformat()}}
+        )
+        
+        # Insert new subscription
+        await self.subscriptions_collection.insert_one(subscription_doc)
+        logger.info(f"Subscription created for {user_email}: plan={plan_id}, expires={expires_at.isoformat()}")
+        return subscription_doc
+    
+    async def get_active_subscription(self, user_email: str) -> Optional[Dict[str, Any]]:
+        """Get active subscription for user"""
+        from datetime import datetime, timezone
+        
+        subscription = await self.subscriptions_collection.find_one({
+            "user_email": user_email.lower(),
+            "active": True
+        })
+        
+        if not subscription:
+            return None
+        
+        # Check if subscription is still valid (not expired)
+        expires_at = datetime.fromisoformat(subscription["expires_at"].replace('Z', '+00:00'))
+        now = datetime.now(timezone.utc)
+        
+        if expires_at < now:
+            # Subscription expired, mark as inactive
+            await self.subscriptions_collection.update_one(
+                {"id": subscription["id"]},
+                {"$set": {"active": False, "updated_at": now.isoformat()}}
+            )
+            return None
+        
+        return dict(subscription)
