@@ -31,15 +31,29 @@ ADMIN_PHONE = "+919999999999"  # Placeholder phone
 
 async def create_admin_user():
     """Create or update admin user"""
-    # Get MongoDB connection string
-    mongodb_uri = os.getenv("MONGODB_URI", "")
-    if not mongodb_uri:
-        print("❌ MONGODB_URI not found in environment variables")
+    # Get MongoDB connection string (backend uses MONGO_URL and DB_NAME)
+    mongo_url = os.getenv("MONGO_URL", "")
+    db_name = os.getenv("DB_NAME", "")
+    
+    # Fallback: Try MONGODB_URI if MONGO_URL not found
+    if not mongo_url:
+        mongodb_uri = os.getenv("MONGODB_URI", "")
+        if mongodb_uri:
+            mongo_url = mongodb_uri
+            if not db_name:
+                # Extract db name from URI if not set separately
+                db_name = mongodb_uri.split("/")[-1].split("?")[0]
+    
+    if not mongo_url:
+        print("❌ MONGO_URL or MONGODB_URI not found in environment variables")
+        print("💡 Please set MONGO_URL and DB_NAME in your .env file")
         return
     
+    if not db_name:
+        db_name = "byonco"  # Default database name
+    
     # Connect to MongoDB
-    client = AsyncIOMotorClient(mongodb_uri)
-    db_name = mongodb_uri.split("/")[-1].split("?")[0]
+    client = AsyncIOMotorClient(mongo_url)
     db = client[db_name]
     
     auth_service = AuthService(db)
