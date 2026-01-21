@@ -227,3 +227,4 @@ async def startup_log_razorpay():
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+

@@ -25,3 +25,4 @@ CORS_ORIGINS = [
     "https://byonco.onrender.com",
     "https://byonco-goaj7ykq-byonco-cares-projects.vercel.app",
 ]
+

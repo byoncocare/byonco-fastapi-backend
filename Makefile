@@ -40,3 +40,4 @@ help:
 	@echo "  make verify     - Verify API routes"
 	@echo "  make seed       - Seed database"
 	@echo "  make admin      - Create admin user"
+

@@ -16,13 +16,19 @@
 Set this in Render dashboard: **Dashboard → Your Service → Settings → Start Command**
 
 ```
-uvicorn server:app --host 0.0.0.0 --port 10000
+uvicorn app.main:app --host 0.0.0.0 --port $PORT
+```
+
+**OR (backward compatibility):**
+```
+uvicorn server:app --host 0.0.0.0 --port $PORT
 ```
 
 **Important Notes:**
-- Use `server:app` (not `main:app` or `app:app`)
+- Use `app.main:app` (new structure) or `server:app` (compatibility shim)
 - `--host 0.0.0.0` allows external connections
-- `--port 10000` is Render's default port (or set via `PORT` env var)
+- `--port $PORT` uses Render's PORT environment variable (recommended)
+- Alternative: `--port 10000` if PORT env var is not set
 
 ---
 

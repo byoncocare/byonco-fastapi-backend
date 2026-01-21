@@ -15,3 +15,4 @@ def get_db():
 def get_client():
     """Get MongoDB client instance"""
     return client
+

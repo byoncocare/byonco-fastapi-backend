@@ -171,3 +171,4 @@ async def analyze_medical_report(report_text: str, cancer_type: str) -> str:
     AI disabled for local mode.
     """
     return "AI analysis disabled in local mode — backend running normally."
+

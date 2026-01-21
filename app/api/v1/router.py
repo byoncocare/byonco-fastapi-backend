@@ -338,3 +338,4 @@ async def get_stats():
         "rare_cancers": len(RARE_CANCERS),
         "common_cancers": len(COMMON_CANCERS),
     }
+

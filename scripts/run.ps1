@@ -66,3 +66,4 @@ switch ($Command) {
     "admin" { Create-AdminUser }
     default { Show-Help }
 }
+
