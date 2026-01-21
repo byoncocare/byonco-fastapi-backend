@@ -1,7 +1,6 @@
-"""
-Rare Cancers module for ByOnco platform
-"""
-from .api_routes import create_api_router
+# Compatibility shim for rare_cancers
+# This module has been moved to app.api.modules.rare_cancers
+# Import everything from the new location
+from app.api.modules.rare_cancers import *
 
-__all__ = ['create_api_router']
-
+__all__ = ['*']

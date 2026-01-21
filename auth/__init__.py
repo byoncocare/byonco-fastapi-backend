@@ -1,25 +1,15 @@
 """
-Authentication module for ByOnco platform
+Compatibility shim for auth module
+This module has been moved to app.api.modules.auth
+Import everything from the new location
 """
-from .api_routes import create_api_router
+import sys
+from pathlib import Path
 
-__all__ = ['create_api_router']
+# Ensure app directory is in path
+backend_dir = Path(__file__).parent
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# Import from new location
+from app.api.modules.auth import *
